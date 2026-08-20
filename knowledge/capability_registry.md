@@ -1,6 +1,6 @@
 # Capability Registry — V12功能责任映射
 
-本表用于保证“重构不删功能”。若活跃模块缺规则，必须回查 `legacy/V12_full_prompt.md`。
+本表用于保证“重构不删功能”。V12源版本审计信息见 `legacy/V12_SOURCE_MANIFEST.md`。如果发现某项V12能力未在活跃模块中登记，必须补入本Registry并分配Owner/Gate，不允许静默删除。
 
 | 能力 | Owner Agent | Gate/Reviewer |
 |---|---|---|
@@ -57,6 +57,10 @@
 | No fake files / links / PASS | All | Every Gate |
 | Chinese professional terminology / WYSIWYG role usability | Docs + Chief | G13/G14 |
 
-## Legacy completeness rule
+## 功能完整性规则
 
-V12原文是最终兜底。如果用户要求V12中任何未在表中明确列出的细节功能，Orchestrator必须搜索Legacy并路由给最接近Owner，不能以“新架构没写”为理由删除。
+1. `legacy/V12_SOURCE_MANIFEST.md` 是V12来源审计基线。
+2. 本Registry是运行时能力责任目录，不是对V12能力的删减许可。
+3. 后续审计若发现V12存在本表遗漏能力，必须：`登记能力 → 分配Owner → 分配Gate → 抽取规则到knowledge/agent → 增加acceptance scenario`。
+4. 禁止因为新架构未登记某能力，就把它视为“不再支持”。
+5. 禁止为“功能不丢失”重新把整份V12常驻加载到所有Subagent；功能保留靠责任映射和按需规则，而不是上下文堆叠。
