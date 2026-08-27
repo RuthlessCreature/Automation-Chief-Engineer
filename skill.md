@@ -1,9 +1,9 @@
 ---
 name: automation-chief-engineer
-version: 1.0.0
+version: 1.0
 display_name: 非标总工
 language: zh-CN
-description: 将非标自动化项目按顺序调度给隔离的专业Subagent，并通过独立Gatekeeper反复返修直到合格，最终一次性交付完整ZIP。保留V12全部工程能力，但不在运行时一次性加载全部规则。
+description: 当用户对话中显式出现唤醒标记 `【非标总工】`，或以 `【非标总工，…】` / `【非标总工,…】` 开头提出非标自动化项目需求时，自动调用本 Skill。将项目按顺序调度给隔离的专业 Subagent，并通过独立 Gatekeeper 反复返修直到合格，最终一次性交付完整 ZIP；保留 V12 全部工程能力，但不在运行时一次性加载全部规则。
 ---
 
 # 非标总工 / Automation Chief Engineer

@@ -1,80 +1,82 @@
-# Automation Chief Engineer / 非标总工
+# 非标总工（Automation Chief Engineer）
 
-这是把原先 20万字级“超级Prompt”重构为 **主Agent调度 + 专业Subagent + 独立Gatekeeper + 返修循环 + 最终打包** 的非标自动化工程 Skill。
+**版本：1.0**
 
-## 核心架构
+这是用于非标自动化项目的“总工工作流程”。它把需求、方案、机械、电气、视觉、软件、成本、验证和项目交付按工程顺序组织起来，帮助项目经理和各专业工程师把零散资料变成一套可评审、可交接的项目资料。
+
+## 怎么启用
+
+在对话中明确写出下列唤醒方式之一，才会启用本工作流程：
+
+- `【非标总工】`
+- `【非标总工，客户要做一台……】`
+- `【非标总工, 帮我评估这个项目……】`
+
+例如：
+
+> 【非标总工，客户需要一套手机中框外观检测和自动上下料设备。节拍 8 秒，现有产品图纸、样品照片和初步检验要求，请给出完整工程方案。】
+
+没有写出 `【非标总工】` 时，按普通对话处理，不自动进入完整项目流程。
+
+## 适合谁使用
+
+- **项目经理**：梳理客户需求、范围、风险、计划、报价依据和交付清单。
+- **机械工程师**：衔接产品、节拍、治具、机构、安全防护、装配和制造要求。
+- **电气工程师**：衔接设备动作、控制方案、电柜、I/O、安全回路、气路和线缆要求。
+- **视觉、软件、工艺、成本和售前人员**：在同一套项目事实和接口下完成各自资料，减少遗漏和前后矛盾。
+
+## 开始前准备什么
+
+资料越完整，方案越接近可落地。已有的资料直接发来即可，不需要先整理成固定格式：
+
+- 产品图纸、3D 模型、样品照片、关键尺寸和公差；
+- 检验项目、缺陷样品、节拍、良率和产能要求；
+- 客户厂房条件、上下游设备接口、MES/条码/治具等约束；
+- 指定品牌、预算、交期、安全规范及验收要求；
+- 旧方案、会议纪要、客户邮件或待确认问题。
+
+没有的数据可以明确写“待确认”。系统会把不能凭工程经验确定的内容列为待确认项，不会把猜测当成结论。
+
+## 会按什么顺序推进
 
 ```text
-用户输入
-  ↓
-Chief Orchestrator
-  ↓
-Requirement Agent → Gate → FAIL则返修本角色
-  ↓ PASS
-Product/CAD Agent → Gate
-  ↓
-Feasibility Agent → Gate
-  ↓
-Vision Agent → Gate
-  ↓
-Mechanical Agent → Gate
-  ↓
-Electrical Agent → Gate
-  ↓
-Software/MES Agent → Gate
-  ↓
-CT Agent → Gate
-  ↓
-BOM/Manufacturing/Cost Agent → Gate
-  ↓
-Digital Twin/Render Agent → Gate
-  ↓
-Validation Agent → Gate
-  ↓
-Project/Sales Agent → Gate
-  ↓
-Documentation Agent → Gate
-  ↓
-Chief Reviewer → dependency rework loop
-  ↓
-Packaging Agent → ZIP Gate
-  ↓
-一次性交付
+客户资料与需求
+        ↓
+需求澄清与产品分析
+        ↓
+可行性、视觉、机械、电气、软件等专业方案
+        ↓
+成本、制造、验证和项目交付资料
+        ↓
+总工复核：发现问题就回到对应专业修订
+        ↓
+形成完整项目交付包
 ```
 
-## 为什么不再使用单体Prompt
+默认按完整项目推进，不需要在每个内部步骤逐项确认。如果只需要某一项，例如“只评审机械方案”或“只出电气 I/O 表”，在唤醒语后说明范围即可。
 
-原V12不是缺功能，而是生产规则、审查规则、所有角色、Gate、历史版本和交付标准同时常驻上下文，容易出现角色串台、规则冲突、上下文浪费、模型用目录/表格代替工程设计等问题。
+## 通常能得到什么
 
-新架构把“功能”和“调度”分开：
+交付内容随项目资料和实际需求确定，通常包括：
 
-- Control Plane：总工调度、状态机、Handoff、PEM；
-- Execution Plane：隔离的专业Subagent；
-- Quality Plane：独立Gatekeeper；
-- Knowledge Plane：按需加载专业规范；
-- Data Plane：PEM唯一事实源；
-- Delivery Plane：Office与最终ZIP。
+- 需求清单、产品与节拍分析、总体方案和风险清单；
+- 机械方案、治具与安全布局、电气控制方案、视觉方案、软件/MES 接口说明；
+- BOM、制造与成本依据、验证计划、FAT/SAT 资料；
+- 项目计划、交付边界、待确认事项和售前支撑材料；
+- 可真实生成的 Word、Excel、PPT、示意图及最终项目资料包。
 
-## 功能不删减
+实际没有执行过的测试、没有收到的供应商报价、没有确认的客户条件，会明确标注为“计划”“待确认”或“风险项”，不会写成已完成或已确认。
 
-- `knowledge/capability_registry.md` 对V12工程能力做责任映射；
-- `legacy/V12_SOURCE_MANIFEST.md` 记录V12源文件大小、行数、SHA-256与重构原则；
-- 后续发现任何V12能力未映射，必须补入Registry并指定Owner/Gate，禁止以重构名义删除功能。
+## 使用时的几个约定
 
-## 入口
+- 优先提供客户的正式图纸、规格和邮件；它们高于经验建议。
+- 需求发生变化时，直接继续用 `【非标总工，变更如下：……】` 说明即可。
+- 需要阶段评审时可明确说“先给机械方案评审”或“先出方案 A/B/C”。
+- 需要完整交付时，只要说“按完整项目交付”，系统会按全流程组织资料。
 
-- 主入口：[`skill.md`](skill.md)
-- 完整流水线：[`workflow/full_delivery_pipeline.md`](workflow/full_delivery_pipeline.md)
-- 架构：[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
-- 使用：[`docs/USAGE.md`](docs/USAGE.md)
-- 功能注册表：[`knowledge/capability_registry.md`](knowledge/capability_registry.md)
+## 项目资料在仓库中的位置
 
-## 核心原则
-
-1. 纯GPT当前原生能力闭环，不假设第三方能力。
-2. 默认一次性交付，不把Gate变成用户确认点。
-3. 每个生产Subagent只负责一个专业域。
-4. Gatekeeper独立审查，失败必须返修。
-5. PEM是唯一事实源，Handoff是唯一跨角色接口。
-6. 不能伪造；能力不足只降级受限资产，不降级整个工程包。
-7. Hero100、数字孪生、Office高利用率、Assembly、BOM、制造、FAT/SAT、项目、销售等功能全部保留。
+- 工作流程说明：[`workflow/full_delivery_pipeline.md`](workflow/full_delivery_pipeline.md)
+- 使用补充：[`docs/USAGE.md`](docs/USAGE.md)
+- 专业能力清单：[`knowledge/capability_registry.md`](knowledge/capability_registry.md)
+- 主工作规则：[`skill.md`](skill.md)
