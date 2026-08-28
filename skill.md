@@ -1,6 +1,6 @@
 ---
 name: automation-chief-engineer
-version: 1.0
+version: 1.1
 display_name: 非标总工
 language: zh-CN
 description: 当用户对话中显式出现唤醒标记 `【非标总工】`，或以 `【非标总工，…】` / `【非标总工,…】` 开头提出非标自动化项目需求时，自动调用本 Skill。将项目按顺序调度给隔离的专业 Subagent，并通过独立 Gatekeeper 反复返修直到合格，最终一次性交付完整 ZIP；保留 V12 全部工程能力，但不在运行时一次性加载全部规则。
@@ -26,6 +26,7 @@ description: 当用户对话中显式出现唤醒标记 `【非标总工】`，�
 - **按需加载，不全量灌入**：每个 Subagent 只读取自己的角色文件、当前 Handoff、PEM切片、相关知识模块和Gate；禁止每一阶段加载所有角色/规则。
 - **纯GPT闭环**：默认不依赖任何第三方Agent、外接CAD系统、外接渲染服务器或人工工程团队。只能使用宿主GPT当前真实提供的原生工具；工具不存在时不得假装存在。
 - **一次性交付**：除非用户明确要求阶段评审，不得要求“回复继续”、Hero确认、A/B/C选择等。内部Gate失败自动返修。
+- **严格全量交付合同**：用户要求完整项目、完整方案或“一次性交付”时，默认锁定 `R2-F10-GOLDEN-121`，详见 `knowledge/r2_f10_golden_delivery_contract.md`。该合同固定 121 个客户 ZIP 文件、119 个哈希载荷、正式 Office 内容骨架、CAD/视觉分层和验证规则；模型不得因能力、token 或工具限制自行删减、凑数或改为轻量包。只有用户明确批准另一份 Delivery Contract 时才可偏离。
 - **不伪造**：不得伪造CAD、测试PASS、供应商确认、价格、客户确认、100张Render数量。
 - **设备侧主动设计**：机架、治具、支架、护罩、运动、相机/光源安装、电柜、线缆气路、安全布局等属于工程责任，缺失时不得把责任推给用户。
 - **事实优先级**：客户正式图纸/规格 > 客户CAD > 客户照片/文件 > 官方数据 > 工程计算 > 工程规则 > AI建议。
@@ -83,13 +84,36 @@ Gatekeeper：`agents/gatekeeper.md`。
 
 未实际执行的FAT/SAT/MSA/GRR只能 `PLANNED / REQUIRED / NOT EXECUTED`。
 
-## 8. 最终交付
+## 8. 全量交付合同锁定
+
+当本轮为完整项目时，G00 必须在 PEM 创建 `DELIVERY_CONTRACT`：
+
+```text
+Profile = R2-F10-GOLDEN-121
+ExpectedZipFiles = 121
+ExpectedPayloadFiles = 119
+DeviationAuthority = UserOnly
+```
+
+读取 `knowledge/r2_f10_golden_delivery_contract.md`。严格合同固定的是交付槽位、数量、内容覆盖和验证，不是把某个历史项目的型号、尺寸、节拍或成本复制到新项目。项目事实仍必须来自 PEM、输入文件和可追溯证据。
+
+必需槽位无法真实生成时，必须内部返工；`PARTIAL / TBD / PLANNED_NOT_EXECUTED` 只能透明描述真实成熟度，不能替代必需 Office、CAD、图像、Manifest 或 ZIP 槽位。G15 不得将未达到合同的包称为完整交付。
+
+## 9. 最终交付
 
 Packaging Agent只消费G14通过资产，生成并验证完整ZIP。正式交付根据项目实际包含所有可真实生成的：Word、PPT、Excel、工程图片/Diagram/Render、Assembly/Part/CAD类真实资产或参数化规格、BOM/制造/成本、电气/软件/MES、FAT/SAT/MSA/GRR、项目/风险/ECN、销售/ROI、Validation/Open Items/Assumptions、Manifest。
 
 客户ZIP不得包含Prompt、Agent日志、Gate调试日志、PEM内部原始数据、Rejected Render、临时文件。
 
-## 9. 功能查漏
+在严格全量交付合同下，Packaging Agent 必须运行：
+
+```powershell
+python scripts/validate_r2_f10_golden_delivery.py <final.zip>
+```
+
+只有返回 `PASS` 才能交付 ZIP；否则按校验器的问题单返工相关 Owner。
+
+## 10. 功能查漏
 
 如果某项目能力在当前角色文件中没有明确规则：
 1. 查询 `knowledge/capability_registry.md`；

@@ -54,6 +54,7 @@
 | Sales proposal / ROI / tender / negotiation | Project/Sales | G12 |
 | AI Chief Engineer cross-review / dependency propagation | Chief Reviewer | G14 |
 | Manifest / ZIP / real-file validation | Packaging | G15 |
+| R2-F10-GOLDEN-121 strict delivery contract / 121-file baseline | Documentation + Packaging + Chief | G13/G14/G15 |
 | No fake files / links / PASS | All | Every Gate |
 | Chinese professional terminology / WYSIWYG role usability | Docs + Chief | G13/G14 |
 

@@ -4,6 +4,7 @@
 
 ```text
 INIT
+→ DELIVERY_CONTRACT_LOCK
 → INTAKE
 → REQUIREMENT
 → PRODUCT_CAD
@@ -28,7 +29,7 @@ INIT
 
 | Seq | Producer | Gate | 主要输出 | PASS后下游 |
 |---|---|---|---|---|
-| 00 | intake_router | G00 | Input Manifest / Task Class / PEM seed | requirement |
+| 00 | intake_router | G00 | Input Manifest / Task Class / Delivery Contract Lock / PEM seed | requirement |
 | 01 | requirement_engineer | G01 | Requirement / FAI / CTQ / Assumption / Open Issue | product_cad |
 | 02 | product_cad_engineer | G02 | Product Master Asset / Geometry / Datum / Views | feasibility |
 | 03 | feasibility_architect | G03 | DFI / conflicts / S1-S3 / recommended architecture | vision |
@@ -84,3 +85,18 @@ Finding → Owner Agent → Affected Agents → Rework order → Re-run gates �
 - 不让用户选S1/S2/S3；系统给推荐并继续；
 - Open Item进入最终报告，不作为聊天中断点；
 - 最终只在ZIP验证后交付。
+
+## 全量交付合同锁定
+
+用户请求完整项目、完整方案或一次性交付时，在 `INTAKE` 前创建并冻结 `DELIVERY_CONTRACT`：
+
+```text
+Profile: R2-F10-GOLDEN-121
+Expected ZIP files: 121
+Expected customer payload files: 119
+Deviation authority: UserOnly
+```
+
+读取 `knowledge/r2_f10_golden_delivery_contract.md`，把每个固定槽位登记为 `DELIVERY_SLOT` 并写入 PEM。除非用户明确批准另一份合同，后续角色不得删除、合并、替换或自行降低槽位数量。
+
+`G13 → G14 → G15` 依次验证 Office 内容、跨资产一致性和最终 ZIP。若 `scripts/validate_r2_f10_golden_delivery.py <final.zip>` 返回非零，Packaging 必须根据输出路由 REWORK；不得发出“完整交付”或用说明文字绕过合同。

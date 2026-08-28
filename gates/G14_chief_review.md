@@ -6,6 +6,7 @@
 - [ ] Station/Camera/Robot数量一致
 - [ ] 销售/验收与工程一致
 - [ ] 所有重大Finding已返工关闭或透明Open
+- [ ] 若 `Delivery Contract=R2-F10-GOLDEN-121`：121 个交付槽位的 Owner、事实、Visual ID、成熟度、引用和 Manifest 路径跨资产一致；无缺失、重复或无意义补位
 ## Gate通用规则
 - Critical hard condition任一失败 => REWORK；
 - 评分不能覆盖硬条件；
