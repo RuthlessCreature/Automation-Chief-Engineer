@@ -1,0 +1,107 @@
+name: deploy-production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type DEPLOY_PRODUCTION to apply remote D1 migrations and deploy zg.gaona.world'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ github.event.inputs.confirmation == 'DEPLOY_PRODUCTION' }}
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate production credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
+            echo "::error::Missing GitHub Actions secret CLOUDFLARE_API_TOKEN"
+            exit 1
+          fi
+          if [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            echo "::error::Missing GitHub Actions secret CLOUDFLARE_ACCOUNT_ID"
+            exit 1
+          fi
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Quality gate - Wrangler types
+        run: npx wrangler types
+
+      - name: Quality gate - TypeScript
+        run: npx tsc --noEmit
+
+      - name: Quality gate - unit and integration tests
+        run: npm test
+
+      - name: Quality gate - Golden validator parity
+        run: cmp scripts/validate_r2_f10_golden_delivery.py cadcore/runner/validate_r2_f10_golden_delivery.py
+
+      - name: Quality gate - CADCore Python
+        run: python -m py_compile cadcore/runner/*.py
+
+      - name: Quality gate - production dry-run
+        run: npm run deploy:dry
+
+      - name: Inspect remote D1 migrations
+        run: npx wrangler d1 migrations list automation-chief-engineer-cloud --remote
+
+      - name: Apply remote D1 migrations
+        run: npx wrangler d1 migrations apply automation-chief-engineer-cloud --remote --yes
+
+      - name: Deploy Worker, assets, workflow and container
+        run: npx wrangler deploy
+
+      - name: Production smoke check
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            if curl --fail --silent --show-error --max-time 20 https://zg.gaona.world/ >/tmp/ace-home.html &&
+               curl --fail --silent --show-error --max-time 20 https://zg.gaona.world/api/me >/tmp/ace-me.json; then
+              echo "Production smoke check passed on attempt $attempt."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Production smoke check failed after deploy"
+          exit 1
+
+      - name: Deployment summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Automation Chief Engineer production deployment"
+            echo
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Target: https://zg.gaona.world"
+            echo "- D1: automation-chief-engineer-cloud"
+            echo "- Worker: automation-chief-engineer-cloud"
+            echo "- Result: \`${{ job.status }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

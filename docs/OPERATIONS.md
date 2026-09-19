@@ -95,3 +95,34 @@ On Windows, compare the two validator files with a byte-for-byte equivalent comm
 Escalate for manual engineering review when the same task exhausts both automatic retries, the same G15 code recurs after controlled rework, CADCore reports invalid customer geometry, or delivery validation repeatedly fails on cross-asset consistency.
 
 Operators may acknowledge or resolve incidents, but may not alter evidence, fabricate a missing asset, or relax the Golden-121 validator to make a task appear green.
+
+
+## 8. GitHub production deploy workflow
+
+The repository includes `.github/workflows/deploy-production.yml` as the preferred production release path.
+
+The workflow is manual-only (`workflow_dispatch`), serialized through the `production-deploy` concurrency group, and requires the exact confirmation string:
+
+`DEPLOY_PRODUCTION`
+
+Required GitHub Actions secrets:
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+
+The workflow performs, in order:
+
+1. credential presence check;
+2. locked dependency install;
+3. Wrangler types;
+4. TypeScript compile;
+5. unit/integration tests;
+6. Golden validator parity;
+7. CADCore Python compile;
+8. production dry-run;
+9. remote D1 migration listing;
+10. remote D1 migration apply;
+11. Wrangler deploy;
+12. HTTP smoke checks against `https://zg.gaona.world/` and `/api/me`.
+
+If credentials are missing, the workflow fails before touching D1 or deploying production.
