@@ -367,10 +367,14 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
 
   if (taskId && parts.length === 5 && parts[0] === "api" && parts[1] === "tasks" && parts[3] === "delivery" && parts[4] === "preview" && method === "GET") {
     await requireTaskOwner(env, user.id, taskId);
-    const requestedFile = url.searchParams.get("file");
-    const previewName = requestedFile === "方案总册.docx" ? "方案总册.html" : requestedFile === "受控产出清单.xlsx" ? "受控产出清单.html" : null;
-    if (!previewName) throw new HttpError(400, "只允许预览已冻结交付包中的受控 Office 派生副本。");
-    const sourceFile = requestedFile as "方案总册.docx" | "受控产出清单.xlsx";
+    const requestedAsset = url.searchParams.get("asset") ?? url.searchParams.get("file");
+    const previewSpec = requestedAsset === "technical-solution" || requestedAsset === "方案总册.docx"
+      ? { previewName: "golden-technical-solution.html", sourceFile: "GOLDEN-121 技术方案书.docx", kind: "docx" as const }
+      : requestedAsset === "engineering-data" || requestedAsset === "受控产出清单.xlsx"
+        ? { previewName: "golden-engineering-data.html", sourceFile: "GOLDEN-121 工程数据包.xlsx", kind: "xlsx" as const }
+        : null;
+    if (!previewSpec) throw new HttpError(400, "只允许预览已冻结 Golden-121 交付包中的受控 Office 派生副本。");
+    const { previewName, sourceFile } = previewSpec;
     const delivery = await env.DB.prepare("SELECT status, manifest_key, zip_key FROM delivery_packages WHERE task_id = ?")
       .bind(taskId).first<Pick<DeliveryRow, "status" | "manifest_key" | "zip_key">>();
     if (!delivery || delivery.status !== "FROZEN" || !delivery.zip_key) throw new HttpError(404, "客户 ZIP 尚未冻结。");
@@ -391,7 +395,7 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
         reports.push({ stageId: artifact.stage_id, title: artifact.title, body: await source.text() });
         rows.push({ stageId: artifact.stage_id, title: artifact.title, sha256: artifact.sha256, provider: provenance.provider ?? "unknown", model: provenance.model ?? "unknown" });
       }
-      const bytes = sourceFile === "方案总册.docx" ? buildSafeHtmlPreview(task?.title ?? "受控方案总册", reports) : buildSafeXlsxHtmlPreview(rows);
+      const bytes = previewSpec.kind === "docx" ? buildSafeHtmlPreview(task?.title ?? "受控技术方案", reports) : buildSafeXlsxHtmlPreview(rows);
       await env.ARTIFACTS.put(previewKey, bytes, { httpMetadata: { contentType: "text/html; charset=utf-8" }, customMetadata: { taskId, sourceFile, security: "safe-derived-no-script" } });
       preview = await env.ARTIFACTS.get(previewKey);
     }
