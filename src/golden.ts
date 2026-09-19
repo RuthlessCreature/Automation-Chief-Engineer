@@ -53,11 +53,11 @@ export async function evaluateGptSolCandidate(env: object, candidate: CandidateA
 /**
  * Deterministic Golden Comparator. It scores the candidate against the
  * red-line contract, never against MiniMax's self-reported confidence. The
- * GPT-SOL score is a reference baseline until a separately configured GPT-SOL
- * evaluator is enabled; this prevents a missing key from being presented as a
- * live model comparison.
+ * GPT-SOL is never synthesized here. A live GPT-SOL result may only be attached
+ * by evaluateGptSolCandidate after an authenticated upstream response; this
+ * comparator always returns REFERENCE_BASELINE for that dimension.
  */
-export function compareArtifactToGolden(candidate: CandidateArtifact, options?: { gptSolConfigured?: boolean }): QualityComparison {
+export function compareArtifactToGolden(candidate: CandidateArtifact): QualityComparison {
   const body = candidate.body.trim();
   const lower = body.toLowerCase();
   const issues: string[] = [];
@@ -78,13 +78,11 @@ export function compareArtifactToGolden(candidate: CandidateArtifact, options?: 
   if (reasoningLeak) issues.push("模型思考过程泄漏到候选产出");
   if (body.length < 320) issues.push("交付候选信息量不足");
   const minimaxScore = Math.max(0, Math.min(100, evidence + engineeringSpecificity + traceability + honesty + completeness));
-  const gptSolConfigured = Boolean(options?.gptSolConfigured);
-  const gptSolScore = gptSolConfigured ? 92 : null;
   return {
     rubricVersion: GOLDEN_RUBRIC_VERSION,
     minimaxScore,
-    gptSolScore,
-    gptSolStatus: gptSolConfigured ? "LIVE_EVALUATED" : "REFERENCE_BASELINE",
+    gptSolScore: null,
+    gptSolStatus: "REFERENCE_BASELINE",
     dimensions: { evidence, engineeringSpecificity, traceability, honesty, completeness },
     issues,
     deliveryAllowed: minimaxScore >= 70 && issues.length === 0,
