@@ -538,13 +538,14 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
       env.DB.prepare("UPDATE delivery_packages SET status = 'REJECTED' WHERE task_id = ? AND status = 'FROZEN'").bind(task.id),
       env.DB.prepare("UPDATE tasks SET state = 'QUEUED', quality_status = 'PENDING', retry_count = 0, last_error_code = NULL, workflow_instance_id = ?, updated_at = ? WHERE id = ? AND owner_id = ? AND state IN ('QUALITY_BLOCKED', 'FAILED', 'PACKAGED')")
         .bind(instanceId, updatedAt, task.id, user.id),
-      env.DB.prepare("UPDATE workflow_incidents SET status = 'ACKNOWLEDGED', acknowledged_at = ?, acknowledged_by = ?, updated_at = ?, resolution_note = ? WHERE task_id = ? AND status = 'OPEN'")
-        .bind(updatedAt, user.id, updatedAt, "任务所有者已启动受控返工。", task.id),
     ]);
     const coordinator = env.TASK_COORDINATOR.getByName(task.id) as DurableObjectStub<TaskCoordinator>;
     await coordinator.publish({ type: "TASK_STATE", message: "任务已进入完整受控重建；历史候选已标记为拒绝，全部阶段按当前质量策略重新审查。", payload: { state: "QUEUED", rework: true, fullRebuild: true, creditsCharged: false }, createdAt: updatedAt });
     try {
       const workflow = await env.TASK_WORKFLOW.create({ id: instanceId, params: { taskId: task.id, ownerId: user.id, prompt: task.prompt } });
+      await env.DB.prepare("UPDATE workflow_incidents SET status = 'ACKNOWLEDGED', acknowledged_at = ?, acknowledged_by = ?, updated_at = ?, resolution_note = ? WHERE task_id = ? AND status = 'OPEN'")
+        .bind(updatedAt, user.id, updatedAt, "任务所有者已启动受控返工。", task.id)
+        .run();
       await audit(env, "TASK_REWORK_STARTED", user.id, task.id, { creditsCharged: false, workflowId: workflow.id });
       return json({ accepted: true, rework: true, workflowId: workflow.id }, 202);
     } catch (error) {
