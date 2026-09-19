@@ -1,0 +1,33 @@
+name: verify-production-static-assets
+
+on:
+  push:
+    branches:
+      - qa/browser-fullflow-20260919-v2
+    paths:
+      - .github/workflows/verify-production-static-assets.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare deployed JS bytes to repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 30 https://zg.gaona.world/app.js -o /tmp/prod-app.js
+          curl -fsS --max-time 30 https://zg.gaona.world/app-fast.js -o /tmp/prod-app-fast.js
+          echo "REPO_APP_SHA=$(sha256sum public/app.js | awk '{print $1}')"
+          echo "PROD_APP_SHA=$(sha256sum /tmp/prod-app.js | awk '{print $1}')"
+          echo "REPO_FAST_SHA=$(sha256sum public/app-fast.js | awk '{print $1}')"
+          echo "PROD_FAST_SHA=$(sha256sum /tmp/prod-app-fast.js | awk '{print $1}')"
+          echo "PROD_APP_SWITCH_HOOK=$(grep -F -c 'window.__ACE_FAST__?.switchTask' /tmp/prod-app.js || true)"
+          echo "PROD_APP_INVALIDATE_HOOK=$(grep -F -c 'invalidateTaskRequests' /tmp/prod-app.js || true)"
+          echo "PROD_FAST_EXPORT_HOOK=$(grep -F -c 'window.__ACE_FAST__ = { switchTask: switchTaskFast' /tmp/prod-app-fast.js || true)"
+          cmp public/app.js /tmp/prod-app.js
+          cmp public/app-fast.js /tmp/prod-app-fast.js
