@@ -148,15 +148,32 @@ async function switchTaskFast(id) {
   const body = document.querySelector('#inspector-body');
   if (body) body.innerHTML = '<div class="inspector-empty">正在切换任务并加载最新过程证据…</div>';
   try {
-    const [{ task }, { artifacts }, { inputs }, { events }, { delivery }] = await Promise.all([
-      jsonFast(`/api/tasks/${id}`), jsonFast(`/api/tasks/${id}/artifacts`), jsonFast(`/api/tasks/${id}/inputs`), jsonFast(`/api/tasks/${id}/events?after=0`), jsonFast(`/api/tasks/${id}/delivery`),
+    // Core identity must render first. Optional evidence endpoints must never
+    // prevent the selected task from becoming visible.
+    const [{ task }, { inputs }] = await Promise.all([
+      jsonFast(`/api/tasks/${id}`),
+      jsonFast(`/api/tasks/${id}/inputs`),
     ]);
     if (token !== switchToken) return;
-    ace.state.artifacts = artifacts;
-    ace.state.events = events;
-    ace.state.delivery = delivery;
+    ace.state.artifacts = [];
+    ace.state.events = [];
+    ace.state.delivery = null;
     renderFastTask(task, inputs);
     document.dispatchEvent(new CustomEvent('ace:task-switched', { detail: { taskId: task.id } }));
+
+    const [artifactResult, eventResult, deliveryResult] = await Promise.allSettled([
+      jsonFast(`/api/tasks/${id}/artifacts`),
+      jsonFast(`/api/tasks/${id}/events?after=0`),
+      jsonFast(`/api/tasks/${id}/delivery`),
+    ]);
+    if (token !== switchToken) return;
+    if (artifactResult.status === 'fulfilled') ace.state.artifacts = artifactResult.value.artifacts;
+    else console.warn('task artifacts load failed', artifactResult.reason);
+    if (eventResult.status === 'fulfilled') ace.state.events = eventResult.value.events;
+    else console.warn('task events load failed', eventResult.reason);
+    if (deliveryResult.status === 'fulfilled') ace.state.delivery = deliveryResult.value.delivery;
+    else console.warn('task delivery load failed', deliveryResult.reason);
+    renderFastTask(task, inputs);
     ace.state.timer = setInterval(() => refreshFast(token), 1000);
   } catch (error) {
     if (token === switchToken && body) body.innerHTML = `<div class="inspector-empty">${escapeFast(error.message)}</div>`;
