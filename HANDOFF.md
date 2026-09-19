@@ -8,7 +8,7 @@
 
 - GitHub：`https://github.com/RuthlessCreature/Automation-Chief-Engineer.git`
 - 主分支：`main`
-- 当前功能主线提交：`8eade85aa95de585cfacd31f9899137ad2ef3789`
+- 当前主线提交：`944a53e1710d59a6ff667bf9d3019bdf09221a5b`
 - P0 Golden-121 合并提交：`ed276071d499606caa862db4d63fbb03e20ad54a`
 - P1 Recovery / Regression / Operations 合并提交：`8eade85aa95de585cfacd31f9899137ad2ef3789`
 - 当前质量策略：`GB-ACE-DELIVERY-V3-GOLDEN-121`
@@ -28,11 +28,19 @@ P0、P1 的功能分支均已通过 TypeScript、单元/集成测试、Golden �
 - Workflow：`ace-task-workflow`
 - Container：`cadcore/Dockerfile`
 
-**重要：本轮代码合并不等于生产发布。**
+**当前生产已完成受控发布。**
 
-仓库当前只有 CI 工作流，没有自动生产部署工作流；当前接手会话也没有 Cloudflare 账号部署凭证，因此不能声称 `8eade85` 已经部署到 `zg.gaona.world`。
+2026-09-19 已通过 `.github/workflows/deploy-production.yml` 完成生产发布：
 
-生产发布必须由具备 Cloudflare 权限的环境执行第 11 节的迁移和部署命令。
+- 对应应用代码基线：`main@944a53e1710d59a6ff667bf9d3019bdf09221a5b`
+- GitHub Actions production run：`35428890455`
+- D1 migration：`0009_workflow_incidents.sql` 已成功应用
+- Cloudflare Worker Current Version ID：`64043ed4-e809-4963-a1e0-08c5b2a43b6f`
+- custom domain：`zg.gaona.world`
+- Workflow：`ace-task-workflow`
+- production smoke：首次尝试通过
+
+部署 run 使用的一次性分支提交只增加了临时 push 触发，不改变应用运行时代码；该触发器在发布后已恢复为 manual-only，没有留下可重复自动部署入口。
 
 不要在 Git、D1、R2、日志、截图或前端保存 API key、测试密码、session 或用户文件。密钥只能通过 Wrangler secret 注入。
 
@@ -230,42 +238,41 @@ Webhook 只发送 incident ID、task ID、code、severity、source、timestamp�
 
 Safe Preview 是安全派生内容，不代表直接暴露 ZIP 内 Office 原文件。
 
-## 9.5 生产发布尝试（2026-09-19）
+## 9.5 生产发布（2026-09-19）
 
-已将受控生产发布 workflow 合入 `main`：
+受控生产发布 workflow 已合入 `main`：
 
 - `.github/workflows/deploy-production.yml`
-- main 合并提交：`4f8abdd218936b1bde7eaf83166707ad967580e4`
+- 初始 workflow 合并提交：`4f8abdd218936b1bde7eaf83166707ad967580e4`
+- D1 命令修复提交：`944a53e1710d59a6ff667bf9d3019bdf09221a5b`
 
-已实际触发一次 production deploy（GitHub Actions run `35425971483`）。结果：
+发布过程有三次受控 run：
 
-- 在 `Validate production credentials` 阶段失败；
-- 明确缺少 GitHub Actions secret `CLOUDFLARE_API_TOKEN`；
-- 因脚本在第一个空 secret 处退出，`CLOUDFLARE_ACCOUNT_ID` 是否存在尚未被单独验证；
-- `npm ci`、质量门、D1 migration、`wrangler deploy`、生产 smoke check 全部被跳过；
-- **没有执行任何远程 D1 迁移，也没有修改 Cloudflare 生产资源。**
+1. `35425971483`：在 credential preflight 阻断，未触碰 D1 或生产资源；
+2. `35428724358`：credentials 与质量门通过，但因 Wrangler 4.133.0 不支持 `d1 migrations apply --yes` 而在 SQL 执行前阻断；
+3. `35428890455`：完整成功。
 
-用于绕过无浏览器 GitHub 登录态的一次性 push trigger 已在专用分支上恢复为 manual-only；没有留下可重复自动部署入口。
+第三次成功 run 的证据：
 
-当前生产站仍可访问：
+- credentials preflight：PASS；
+- Wrangler types / TypeScript / unit+integration / Golden parity / CADCore Python / production dry-run：PASS；
+- remote D1 list：发现 `0009_workflow_incidents.sql` 待应用；
+- remote D1 apply：`0009_workflow_incidents.sql ✅`；
+- Worker/assets/Workflow/Container deploy：PASS；
+- custom domain：`zg.gaona.world`；
+- Workflow：`ace-task-workflow`；
+- Worker Current Version ID：`64043ed4-e809-4963-a1e0-08c5b2a43b6f`；
+- production smoke：attempt 1 PASS。
 
-- `https://zg.gaona.world/` 返回现有“总工云台｜受控方案交付”页面；
-- `https://zg.gaona.world/api/me` 未登录时返回 `{"user":null}`。
+独立线上读取确认：
 
-下一次生产发布前，必须先在 GitHub Actions / production environment 中配置：
+- `https://zg.gaona.world/` 返回“总工云台｜受控方案交付”；
+- `https://zg.gaona.world/api/me` 未登录时返回 `{"user":null}`；
+- `https://zg.gaona.world/ops.html` 可到达 Workflow Operations 页面。
 
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID`
-
-然后手动触发 `deploy-production`，输入确认值 `DEPLOY_PRODUCTION`。
+所有一次性 push trigger 均已恢复成 manual-only，没有留下自动发布后门。
 
 ## 10. 仍然未完成 / 外部条件
-
-### A. 生产迁移和部署
-
-本轮没有 Cloudflare 部署凭证，因此尚未将 `main@8eade85` 发布到生产。
-
-由于新增 `0009_workflow_incidents.sql`，必须先迁移 D1，再部署 Worker。
 
 ### B. 生产 E2E
 
