@@ -1,0 +1,29 @@
+name: inspect-5015-replay
+
+on:
+  push:
+    branches:
+      - ops/inspect-5015-replay-20260919
+    paths:
+      - .github/workflows/inspect-5015-replay.yml
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Read replay state only
+        run: |
+          npx wrangler d1 execute automation-chief-engineer-cloud --remote --json --command "SELECT t.id,t.state,t.quality_status,t.last_error_code,t.created_at FROM tasks t JOIN users u ON u.id=t.owner_id WHERE u.email='test@test.com' AND t.title='5015 | Golden-121 PROD rerun | 2026-09-19' ORDER BY t.created_at DESC LIMIT 1"
