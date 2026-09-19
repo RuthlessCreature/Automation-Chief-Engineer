@@ -1,4 +1,5 @@
 name: inspect-5015-production
+# probe-seq: 2
 
 on:
   push:
