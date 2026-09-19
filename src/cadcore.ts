@@ -175,7 +175,10 @@ export async function validateGoldenDeliveryZip(env: Env, taskId: string, zipByt
   const workspace = "/workspace/cad/validate/golden-r01";
   const zipPath = `${workspace}/customer-delivery.zip`;
   await sandbox.mkdir(workspace, { recursive: true });
-  await sandbox.writeFile(zipPath, zipBytes);
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) { controller.enqueue(zipBytes); controller.close(); },
+  });
+  await sandbox.writeFile(zipPath, stream);
   const execution = await sandbox.exec(
     `python3 /opt/cadcore/validate_r2_f10_golden_delivery.py ${zipPath}`,
     { cwd: workspace },
