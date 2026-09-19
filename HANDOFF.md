@@ -230,6 +230,35 @@ Webhook 只发送 incident ID、task ID、code、severity、source、timestamp�
 
 Safe Preview 是安全派生内容，不代表直接暴露 ZIP 内 Office 原文件。
 
+## 9.5 生产发布尝试（2026-09-19）
+
+已将受控生产发布 workflow 合入 `main`：
+
+- `.github/workflows/deploy-production.yml`
+- main 合并提交：`4f8abdd218936b1bde7eaf83166707ad967580e4`
+
+已实际触发一次 production deploy（GitHub Actions run `35425971483`）。结果：
+
+- 在 `Validate production credentials` 阶段失败；
+- 明确缺少 GitHub Actions secret `CLOUDFLARE_API_TOKEN`；
+- 因脚本在第一个空 secret 处退出，`CLOUDFLARE_ACCOUNT_ID` 是否存在尚未被单独验证；
+- `npm ci`、质量门、D1 migration、`wrangler deploy`、生产 smoke check 全部被跳过；
+- **没有执行任何远程 D1 迁移，也没有修改 Cloudflare 生产资源。**
+
+用于绕过无浏览器 GitHub 登录态的一次性 push trigger 已在专用分支上恢复为 manual-only；没有留下可重复自动部署入口。
+
+当前生产站仍可访问：
+
+- `https://zg.gaona.world/` 返回现有“总工云台｜受控方案交付”页面；
+- `https://zg.gaona.world/api/me` 未登录时返回 `{"user":null}`。
+
+下一次生产发布前，必须先在 GitHub Actions / production environment 中配置：
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+
+然后手动触发 `deploy-production`，输入确认值 `DEPLOY_PRODUCTION`。
+
 ## 10. 仍然未完成 / 外部条件
 
 ### A. 生产迁移和部署
