@@ -135,7 +135,7 @@ function safeName(value: string): string {
   return value.normalize("NFKC").replace(/[^\p{L}\p{N}._-]+/gu, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "project";
 }
 
-function noProductCadEvidence(): Entry[] {
+export function noProductCadEvidence(): Entry[] {
   const marker = "NO_PRODUCT_CAD_PROVIDED";
   const note = encoder.encode([
     "# 产品 CAD 输入状态",
