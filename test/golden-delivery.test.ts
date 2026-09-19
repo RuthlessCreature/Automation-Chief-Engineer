@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { PIPELINE } from "../src/domain";
 import { GOLDEN_SHEETS, docx, geometryViews, geometryVisuals, openCsv, pdf, pptx, views, visuals, xlsx, type Report } from "../src/golden-delivery";
 
 const reports: Report[] = [{
@@ -85,5 +86,30 @@ describe("Golden-121 deterministic assets", () => {
     expect(evidence).toHaveLength(96);
     expect([...productViews, ...evidence].every((entry) => entry.data.slice(0, 8).every((byte, index) => byte === [137,80,78,71,13,10,26,10][index]))).toBe(true);
     expect(new TextDecoder().decode(openCsv()).trim().split(/\r?\n/)).toHaveLength(15);
+  });
+});
+
+
+describe("pipeline order contract", () => {
+  it("keeps the governed 15-stage order immutable", () => {
+    expect(PIPELINE).toHaveLength(15);
+    expect(PIPELINE.map((stage) => stage.id)).toEqual([
+      "intake",
+      "requirements",
+      "feasibility",
+      "vision",
+      "mechanical",
+      "electrical",
+      "software_mes",
+      "product_cad",
+      "ct_capacity",
+      "bom_cost",
+      "digital_twin",
+      "validation",
+      "project_sales",
+      "documentation",
+      "chief_review",
+    ]);
+    expect(new Set(PIPELINE.map((stage) => stage.id)).size).toBe(15);
   });
 });
