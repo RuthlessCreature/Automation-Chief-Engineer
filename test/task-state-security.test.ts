@@ -57,6 +57,7 @@ describe("task ownership and state-machine regression", () => {
       [`/api/tasks/${taskId}/delivery/download`, { method: "GET" }],
       [`/api/tasks/${taskId}/artifacts`, { method: "GET" }],
       [`/api/tasks/${taskId}/events`, { method: "GET" }],
+      [`/api/tasks/${taskId}/cad-inspections`, { method: "GET" }],
       [`/api/tasks/${taskId}/retries`, { method: "GET" }],
       [`/api/tasks/${taskId}/rework`, { method: "POST" }],
       [`/api/tasks/${taskId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: "Stolen task" }) }],
