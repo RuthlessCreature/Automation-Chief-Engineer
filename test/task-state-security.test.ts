@@ -1,0 +1,143 @@
+import { env, SELF } from "cloudflare:test";
+import { describe, expect, it } from "vitest";
+
+async function register(email: string): Promise<string> {
+  const response = await SELF.fetch("https://worker.test/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password: "correct-horse-battery-staple" }),
+  });
+  expect(response.status).toBe(201);
+  const cookie = response.headers.get("Set-Cookie");
+  expect(cookie).toContain("ace_session=");
+  return cookie!.split(";")[0]!;
+}
+
+async function createTask(cookie: string, title = "Regression task"): Promise<string> {
+  const response = await SELF.fetch("https://worker.test/api/tasks", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: cookie },
+    body: JSON.stringify({
+      title,
+      prompt: "建立一个用于状态机、权限隔离、失败恢复和客户交付下载回归验证的受控工程任务。",
+    }),
+  });
+  expect(response.status).toBe(201);
+  const payload = await response.json<{ task: { id: string } }>();
+  return payload.task.id;
+}
+
+async function seedFrozenDelivery(taskId: string): Promise<Uint8Array> {
+  const bytes = new TextEncoder().encode("controlled-customer-zip");
+  const root = `tasks/${taskId}/delivery/test-package`;
+  const zipKey = `${root}/customer-delivery.zip`;
+  const manifestKey = `${root}/manifest.json`;
+  await env.ARTIFACTS.put(zipKey, bytes, { httpMetadata: { contentType: "application/zip" } });
+  await env.ARTIFACTS.put(manifestKey, JSON.stringify({ schemaVersion: "test", files: [] }));
+  const now = new Date().toISOString();
+  await env.DB.prepare(
+    "INSERT INTO delivery_packages (id, task_id, status, manifest_key, zip_key, sha256, approved_by, created_at, frozen_at) VALUES (?, ?, 'FROZEN', ?, ?, ?, NULL, ?, ?)",
+  ).bind("pkg-" + taskId, taskId, manifestKey, zipKey, "A".repeat(64), now, now).run();
+  await env.DB.prepare("UPDATE tasks SET state = 'PACKAGED', quality_status = 'PASS', updated_at = ? WHERE id = ?")
+    .bind(now, taskId).run();
+  return bytes;
+}
+
+describe("task ownership and state-machine regression", () => {
+  it("denies another account every task-scoped control and delivery path", async () => {
+    const owner = await register("security-owner@example.com");
+    const intruder = await register("security-intruder@example.com");
+    const taskId = await createTask(owner, "Private task");
+    await seedFrozenDelivery(taskId);
+
+    const requests: Array<[string, RequestInit]> = [
+      [`/api/tasks/${taskId}`, { method: "GET" }],
+      [`/api/tasks/${taskId}/delivery`, { method: "GET" }],
+      [`/api/tasks/${taskId}/delivery/download`, { method: "GET" }],
+      [`/api/tasks/${taskId}/artifacts`, { method: "GET" }],
+      [`/api/tasks/${taskId}/events`, { method: "GET" }],
+      [`/api/tasks/${taskId}/retries`, { method: "GET" }],
+      [`/api/tasks/${taskId}/rework`, { method: "POST" }],
+      [`/api/tasks/${taskId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: "Stolen task" }) }],
+      [`/api/tasks/${taskId}`, { method: "DELETE" }],
+    ];
+
+    for (const [path, init] of requests) {
+      const response = await SELF.fetch("https://worker.test" + path, {
+        ...init,
+        headers: { ...(init.headers ?? {}), Cookie: intruder },
+      });
+      expect(response.status, `${init.method ?? "GET"} ${path}`).toBe(404);
+    }
+
+    const ownerRead = await SELF.fetch(`https://worker.test/api/tasks/${taskId}`, { headers: { Cookie: owner } });
+    expect(ownerRead.status).toBe(200);
+  });
+
+  it("allows only the owner to download a frozen ZIP and denies rejected delivery", async () => {
+    const owner = await register("delivery-owner@example.com");
+    const other = await register("delivery-other@example.com");
+    const taskId = await createTask(owner, "Delivery task");
+    const expected = await seedFrozenDelivery(taskId);
+
+    const delivery = await SELF.fetch(`https://worker.test/api/tasks/${taskId}/delivery`, { headers: { Cookie: owner } });
+    const deliveryPayload = await delivery.json<{ delivery: { download_path: string | null } }>();
+    expect(deliveryPayload.delivery.download_path).toBe(`/api/tasks/${taskId}/delivery/download`);
+
+    const download = await SELF.fetch(`https://worker.test/api/tasks/${taskId}/delivery/download`, { headers: { Cookie: owner } });
+    expect(download.status).toBe(200);
+    expect(download.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(download.headers.get("Content-Disposition")).toContain(`task-${taskId}.zip`);
+    expect(new Uint8Array(await download.arrayBuffer())).toEqual(expected);
+
+    const denied = await SELF.fetch(`https://worker.test/api/tasks/${taskId}/delivery/download`, { headers: { Cookie: other } });
+    expect(denied.status).toBe(404);
+
+    await env.DB.prepare("UPDATE delivery_packages SET status = 'REJECTED' WHERE task_id = ?").bind(taskId).run();
+    const rejected = await SELF.fetch(`https://worker.test/api/tasks/${taskId}/delivery/download`, { headers: { Cookie: owner } });
+    expect(rejected.status).toBe(404);
+  });
+
+  it("blocks delete and bulk-delete while any selected task is active", async () => {
+    const owner = await register("state-owner@example.com");
+    const runningId = await createTask(owner, "Running task");
+    const draftId = await createTask(owner, "Draft task");
+    await env.DB.prepare("UPDATE tasks SET state = 'RUNNING', updated_at = ? WHERE id = ?")
+      .bind(new Date().toISOString(), runningId).run();
+
+    const single = await SELF.fetch(`https://worker.test/api/tasks/${runningId}`, { method: "DELETE", headers: { Cookie: owner } });
+    expect(single.status).toBe(409);
+
+    const bulk = await SELF.fetch("https://worker.test/api/tasks/bulk-delete", {
+      method: "POST",
+      headers: { Cookie: owner, "Content-Type": "application/json" },
+      body: JSON.stringify({ taskIds: [runningId, draftId] }),
+    });
+    expect(bulk.status).toBe(409);
+
+    const list = await SELF.fetch("https://worker.test/api/tasks", { headers: { Cookie: owner } });
+    const payload = await list.json<{ tasks: Array<{ id: string; deleted_at: string | null }> }>();
+    expect(payload.tasks.filter((task) => task.id === runningId || task.id === draftId)).toHaveLength(2);
+  });
+
+  it("soft-deletes and restores only through the owning account", async () => {
+    const owner = await register("restore-owner@example.com");
+    const other = await register("restore-other@example.com");
+    const taskId = await createTask(owner, "Recoverable task");
+
+    const remove = await SELF.fetch(`https://worker.test/api/tasks/${taskId}`, { method: "DELETE", headers: { Cookie: owner } });
+    expect(remove.status).toBe(200);
+
+    const hidden = await SELF.fetch(`https://worker.test/api/tasks/${taskId}`, { headers: { Cookie: owner } });
+    expect(hidden.status).toBe(404);
+
+    const deniedRestore = await SELF.fetch(`https://worker.test/api/tasks/${taskId}/restore`, { method: "POST", headers: { Cookie: other } });
+    expect(deniedRestore.status).toBe(404);
+
+    const restore = await SELF.fetch(`https://worker.test/api/tasks/${taskId}/restore`, { method: "POST", headers: { Cookie: owner } });
+    expect(restore.status).toBe(200);
+
+    const visible = await SELF.fetch(`https://worker.test/api/tasks/${taskId}`, { headers: { Cookie: owner } });
+    expect(visible.status).toBe(200);
+  });
+});
