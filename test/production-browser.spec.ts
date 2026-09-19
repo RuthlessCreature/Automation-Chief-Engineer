@@ -48,6 +48,31 @@ test.describe("production command center regression", () => {
     }
   });
 
+  test("frozen Customer Delivery remains stable between poll cycles", async ({ page }) => {
+    await page.goto(baseURL, { waitUntil: "networkidle" });
+    await page.getByRole("button", { name: /登录 \/ 注册/ }).click();
+    await page.locator("#auth-form input[name=email]").fill(email!);
+    await page.locator("#auth-form input[name=password]").fill(password!);
+    await page.locator("#auth-submit").click();
+    await expect(page.locator("#task-list .task-row").first()).toBeVisible({ timeout: 20_000 });
+
+    const packaged = page.locator("#task-list .task-row", { hasText: "5015 | Golden-121 PROD rerun" }).first();
+    test.skip(await packaged.count() === 0, "requires the production 5015 packaged regression task");
+    await packaged.click();
+    await expect(page.locator("#task-state")).toHaveText("PACKAGED", { timeout: 20_000 });
+    await page.locator('.layer-tab[data-layer="delivery"]').click();
+    const inspector = page.locator("#inspector-body");
+    const download = page.locator('a.button.primary', { hasText: "下载客户 ZIP" });
+    await expect(inspector).toContainText("客户交付 ZIP 已冻结", { timeout: 20_000 });
+    await expect(download).toBeVisible();
+
+    for (let index = 0; index < 12; index += 1) {
+      await page.waitForTimeout(350);
+      await expect(inspector).not.toContainText("尚未冻结客户 ZIP");
+      await expect(download).toBeVisible();
+    }
+  });
+
   test("new-task cancel is side-effect free", async ({ page }) => {
     await page.goto(baseURL, { waitUntil: "networkidle" });
     await page.getByRole("button", { name: /登录 \/ 注册/ }).click();
