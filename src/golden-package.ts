@@ -135,6 +135,45 @@ function safeName(value: string): string {
   return value.normalize("NFKC").replace(/[^\p{L}\p{N}._-]+/gu, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "project";
 }
 
+function noProductCadEvidence(): Entry[] {
+  const marker = "NO_PRODUCT_CAD_PROVIDED";
+  const note = encoder.encode([
+    "# 产品 CAD 输入状态",
+    "",
+    `- Status: ${marker}`,
+    "- Customer product CAD supplied: NO",
+    "- Product geometry claim: NONE",
+    "- Product BREP / STEP / STL: intentionally not generated",
+    "",
+    "本交付未收到客户提供的产品 STEP/STP/STL。02_产品CAD与视图 目录中的视图仅用于明确“无产品 CAD”这一事实边界，",
+    "不得视为客户产品几何、制造图纸、量产模型或尺寸依据。若后续补充真实产品 CAD，应重新执行 CADCore G02 与 G15 冻结。",
+  ].join("\n"));
+  const status = encoder.encode(JSON.stringify({
+    status: marker,
+    customerProductCadProvided: false,
+    sourceCadCount: 0,
+    productGeometryClaim: "NONE",
+    generatedProductCad: false,
+    requiredNextAction: "SUPPLY_REAL_PRODUCT_STEP_STP_OR_STL_AND_REWORK",
+  }, null, 2));
+  const views = ["bottom", "front", "isometric", "right", "top", "scope_boundary"];
+  const svgs = views.map((view) => ({
+    relativePath: `02_产品CAD与视图/${view}_NO_PRODUCT_CAD.svg`,
+    data: encoder.encode(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800"><rect width="100%" height="100%" fill="white"/><rect x="80" y="80" width="1040" height="640" fill="none" stroke="black" stroke-width="4"/><text x="120" y="250" font-size="42" font-family="sans-serif">${marker}</text><text x="120" y="330" font-size="28" font-family="sans-serif">view: ${view}</text><text x="120" y="410" font-size="24" font-family="sans-serif">No customer product STEP/STP/STL was supplied.</text><text x="120" y="460" font-size="24" font-family="sans-serif">This is a scope-boundary marker, not product geometry.</text></svg>`,
+    ),
+    description: `${view} scope marker; customer product CAD not provided`,
+    ownerModule: "ProductCAD",
+    status: "NO_PRODUCT_CAD",
+    validationResult: "SOURCE_CAD_NOT_PROVIDED",
+  } satisfies Entry));
+  return [
+    { relativePath: "02_产品CAD与视图/PRODUCT_CAD_NOT_PROVIDED.md", data: note, description: "产品 CAD 缺失事实边界声明", ownerModule: "ProductCAD", status: "NO_PRODUCT_CAD", validationResult: "SOURCE_CAD_NOT_PROVIDED" },
+    { relativePath: "02_产品CAD与视图/product_cad_status.json", data: status, description: "产品 CAD 输入状态机读记录", ownerModule: "ProductCAD", status: "NO_PRODUCT_CAD", validationResult: "SOURCE_CAD_NOT_PROVIDED" },
+    ...svgs,
+  ];
+}
+
 async function getObjectBytes(env: Env, key: string, code: string): Promise<Uint8Array> {
   const object = await env.ARTIFACTS.get(key);
   if (!object) throw new Error(code);
@@ -214,23 +253,29 @@ export async function freezeGoldenCustomerDelivery(env: Env, taskId: string): Pr
   const sourceInputs = await env.DB.prepare("SELECT id, original_name, content_type, storage_key, sha256, size_bytes FROM task_inputs WHERE task_id = ? ORDER BY created_at ASC")
     .bind(taskId).all<TaskInputRow>();
   const cadInputs = sourceInputs.results.filter((input) => /\.(step|stp|stl)$/i.test(input.original_name));
-  if (cadInputs.length !== 1) throw new Error(cadInputs.length ? "DELIVERY_GOLDEN_PRODUCT_CAD_AMBIGUOUS" : "DELIVERY_GOLDEN_PRODUCT_CAD_REQUIRED");
-  const cadInput = cadInputs[0]!;
-  const cadJobs = await env.DB.prepare("SELECT input_id, normalized_brep_key, report_storage_key FROM cad_jobs WHERE task_id = ? AND status = 'SUCCEEDED'")
-    .bind(taskId).all<CadJobOutputRow>();
-  const cadJob = cadJobs.results.find((candidate) => candidate.input_id === cadInput.id);
-  if (!cadJob?.normalized_brep_key || !cadJob.report_storage_key) throw new Error("DELIVERY_CADCORE_INCOMPLETE:" + cadInput.original_name);
+  if (cadInputs.length > 1) throw new Error("DELIVERY_GOLDEN_PRODUCT_CAD_AMBIGUOUS");
 
-  const productCad = await deriveCadDeliveryAssets(env, { taskId, inputId: cadInput.id, normalizedBrepKey: cadJob.normalized_brep_key });
-  const productBrepBytes = await getObjectBytes(env, productCad.brepKey, "DELIVERY_PRODUCT_BREP_MISSING");
-  const productStepBytes = await getObjectBytes(env, productCad.stepKey, "DELIVERY_PRODUCT_STEP_MISSING");
-  const productStlBytes = await getObjectBytes(env, productCad.stlKey, "DELIVERY_PRODUCT_STL_MISSING");
-  payload.push(
-    { relativePath: "02_产品CAD与视图/product.brep", data: productBrepBytes, description: "CADCore normalized product BREP", ownerModule: "ProductCAD", status: "CADCORE_DERIVED", validationResult: "PASS" },
-    { relativePath: "02_产品CAD与视图/product.step", data: productStepBytes, description: "CADCore product STEP derivative", ownerModule: "ProductCAD", status: "CADCORE_DERIVED", validationResult: "PASS" },
-    { relativePath: "02_产品CAD与视图/product.stl", data: productStlBytes, description: "CADCore product STL derivative", ownerModule: "ProductCAD", status: "CADCORE_DERIVED", validationResult: "PASS" },
-    ...geometryViews("02_产品CAD与视图", productStlBytes, true),
-  );
+  let productStlBytes: Uint8Array | null = null;
+  if (cadInputs.length === 1) {
+    const cadInput = cadInputs[0]!;
+    const cadJobs = await env.DB.prepare("SELECT input_id, normalized_brep_key, report_storage_key FROM cad_jobs WHERE task_id = ? AND status = 'SUCCEEDED'")
+      .bind(taskId).all<CadJobOutputRow>();
+    const cadJob = cadJobs.results.find((candidate) => candidate.input_id === cadInput.id);
+    if (!cadJob?.normalized_brep_key || !cadJob.report_storage_key) throw new Error("DELIVERY_CADCORE_INCOMPLETE:" + cadInput.original_name);
+
+    const productCad = await deriveCadDeliveryAssets(env, { taskId, inputId: cadInput.id, normalizedBrepKey: cadJob.normalized_brep_key });
+    const productBrepBytes = await getObjectBytes(env, productCad.brepKey, "DELIVERY_PRODUCT_BREP_MISSING");
+    const productStepBytes = await getObjectBytes(env, productCad.stepKey, "DELIVERY_PRODUCT_STEP_MISSING");
+    productStlBytes = await getObjectBytes(env, productCad.stlKey, "DELIVERY_PRODUCT_STL_MISSING");
+    payload.push(
+      { relativePath: "02_产品CAD与视图/product.brep", data: productBrepBytes, description: "CADCore normalized product BREP", ownerModule: "ProductCAD", status: "CADCORE_DERIVED", validationResult: "PASS" },
+      { relativePath: "02_产品CAD与视图/product.step", data: productStepBytes, description: "CADCore product STEP derivative", ownerModule: "ProductCAD", status: "CADCORE_DERIVED", validationResult: "PASS" },
+      { relativePath: "02_产品CAD与视图/product.stl", data: productStlBytes, description: "CADCore product STL derivative", ownerModule: "ProductCAD", status: "CADCORE_DERIVED", validationResult: "PASS" },
+      ...geometryViews("02_产品CAD与视图", productStlBytes, true),
+    );
+  } else {
+    payload.push(...noProductCadEvidence());
+  }
 
   const conceptCad = await buildConceptCadAssets(env, taskId, conceptEnvelope);
   const conceptBrepBytes = await getObjectBytes(env, conceptCad.brepKey, "DELIVERY_CONCEPT_BREP_MISSING");
@@ -242,7 +287,14 @@ export async function freezeGoldenCustomerDelivery(env: Env, taskId: string): Pr
     { relativePath: "03_整机概念CAD与视图/concept.step", data: conceptStepBytes, description: "受控概念整机 STEP", ownerModule: "Mechanical", status: "ASM_NOT_VERIFIED", validationResult: "PASS" },
     { relativePath: "03_整机概念CAD与视图/concept.stl", data: conceptStlBytes, description: "受控概念整机 STL", ownerModule: "Mechanical", status: "ASM_NOT_VERIFIED", validationResult: "PASS" },
     ...geometryViews("03_整机概念CAD与视图", conceptStlBytes, false),
-    ...geometryVisuals(productStlBytes, conceptStlBytes),
+    ...(productStlBytes
+      ? geometryVisuals(productStlBytes, conceptStlBytes)
+      : geometryVisuals(conceptStlBytes, conceptStlBytes).map((entry) => ({
+          ...entry,
+          description: "NO_PRODUCT_CAD_PROVIDED | concept-geometry-only visual evidence",
+          status: entry.relativePath.includes("/03_diagram/") ? "ENGINEERING_DIAGRAM" : "ASM_NOT_VERIFIED",
+          validationResult: "CONCEPT_ONLY_NO_PRODUCT_CAD",
+        }))),
   );
 
   if (payload.length !== 119) throw new Error("DELIVERY_GOLDEN_PAYLOAD_COUNT_MISMATCH:" + payload.length);
