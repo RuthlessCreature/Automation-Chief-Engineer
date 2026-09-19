@@ -356,9 +356,9 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
 
   if (taskId && parts.length === 4 && parts[0] === "api" && parts[1] === "tasks" && parts[3] === "cad-inspections" && method === "GET") {
     await requireTaskOwner(env, user.id, taskId);
-    const jobs = await env.DB.prepare("SELECT id, task_id, input_id, kind, status, report_storage_key, normalized_brep_key, error_code, created_at, started_at, completed_at FROM cad_jobs WHERE task_id = ? ORDER BY created_at DESC")
-      .bind(taskId)
-      .all<CadJobRow>();
+    const jobs = await env.DB.prepare(
+      "SELECT j.id, j.task_id, j.input_id, j.kind, j.status, j.report_storage_key, j.normalized_brep_key, j.error_code, j.created_at, j.started_at, j.completed_at, i.original_name, a.id AS report_artifact_id FROM cad_jobs j JOIN task_inputs i ON i.id = j.input_id LEFT JOIN artifacts a ON a.task_id = j.task_id AND a.storage_key = j.report_storage_key AND a.status = 'ACCEPTED' WHERE j.task_id = ? ORDER BY j.created_at DESC",
+    ).bind(taskId).all<CadJobRow & { original_name: string; report_artifact_id: string | null }>();
     return json({ jobs: jobs.results });
   }
 
