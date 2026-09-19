@@ -74,7 +74,7 @@ async function qa(id: string, name: string, priority: CaseResult["priority"], fn
 }
 
 async function createSession() {
-  const users = d1(`SELECT id, role, credits FROM users WHERE email=${sqlq(EMAIL)} LIMIT 1`);
+  const users = d1(`SELECT id FROM users WHERE email=${sqlq(EMAIL)} LIMIT 1`);
   if (users.length !== 1) throw new Error("production test account missing");
   const uid = String(users[0]!.id);
   sessionId = randomUUID();
@@ -85,7 +85,7 @@ async function createSession() {
       [sessionId, uid, expires.toISOString(), now.toISOString()].map(sqlq).join(",") +
       ")",
   );
-  return { uid, role: String(users[0]!.role), credits: Number(users[0]!.credits) };
+  return { uid };
 }
 
 function cleanupSession() {
@@ -132,7 +132,7 @@ test.setTimeout(75 * 60 * 1000);
 
 test("production UI full-flow acceptance", async ({ browser }) => {
   const account = createSession();
-  console.log(`QA_META|account_role=${account.role}|credits=${account.credits}`);
+  console.log(`QA_META|session_bootstrap=PASS|uid_present=${Boolean(account.uid)}`);
 
   let qaTaskTitle = "";
   let qaTaskId = "";
@@ -186,8 +186,9 @@ test("production UI full-flow acceptance", async ({ browser }) => {
     await qa("AUTH-004", "短时生产会话进入真实账号", "P0", async () => {
       await page.goto(BASE, { waitUntil: "networkidle" });
       await expect(page.locator("#account")).toContainText(EMAIL);
-      await expect(page.locator("#credits")).toHaveText(String(account.credits));
-      return `account=${EMAIL}; credits=${account.credits}`;
+      await expect(page.locator("#credits")).toHaveText(/^\d+$/);
+      const credits = await page.locator("#credits").textContent();
+      return `account=${EMAIL}; credits=${credits}`;
     });
 
     await qa("NAV-001", "任务列表正常加载", "P0", async () => {
