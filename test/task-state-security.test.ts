@@ -1,5 +1,6 @@
 import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
+import { openWorkflowIncident, resolveTaskIncidents } from "../src/incidents";
 
 async function register(email: string): Promise<string> {
   const response = await SELF.fetch("https://worker.test/api/auth/register", {
@@ -182,4 +183,67 @@ describe("task ownership and state-machine regression", () => {
     expect(invalid.status).toBe(400);
   });
 
+});
+
+
+describe("workflow incident operations", () => {
+  it("keeps the operations ledger private from normal members", async () => {
+    const member = await register("ops-member@example.com");
+    const health = await SELF.fetch("https://worker.test/api/ops/health", { headers: { Cookie: member } });
+    expect(health.status).toBe(403);
+    const incidents = await SELF.fetch("https://worker.test/api/ops/incidents", { headers: { Cookie: member } });
+    expect(incidents.status).toBe(403);
+  });
+
+  it("allows an admin to acknowledge and resolve an incident", async () => {
+    const email = "ops-admin@example.com";
+    const admin = await register(email);
+    const user = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first<{ id: string }>();
+    expect(user?.id).toBeTruthy();
+    await env.DB.prepare("UPDATE users SET role = 'admin' WHERE id = ?").bind(user!.id).run();
+    const taskId = await createTask(admin, "Ops incident task");
+    const incidentId = await openWorkflowIncident(env, {
+      taskId,
+      code: "UPSTREAM_TIMEOUT",
+      severity: "ERROR",
+      source: "TEST",
+      detail: { retryExhausted: true },
+    });
+
+    const health = await SELF.fetch("https://worker.test/api/ops/health", { headers: { Cookie: admin } });
+    expect(health.status).toBe(200);
+    const open = await SELF.fetch("https://worker.test/api/ops/incidents?status=OPEN", { headers: { Cookie: admin } });
+    const payload = await open.json<{ incidents: Array<{ id: string; task_id: string }> }>();
+    expect(payload.incidents).toEqual(expect.arrayContaining([expect.objectContaining({ id: incidentId, task_id: taskId })]));
+
+    const ack = await SELF.fetch(`https://worker.test/api/ops/incidents/${incidentId}/acknowledge`, {
+      method: "POST",
+      headers: { Cookie: admin },
+    });
+    expect(ack.status).toBe(200);
+
+    const resolved = await SELF.fetch(`https://worker.test/api/ops/incidents/${incidentId}/resolve`, {
+      method: "POST",
+      headers: { Cookie: admin, "Content-Type": "application/json" },
+      body: JSON.stringify({ note: "人工复核后恢复完成。" }),
+    });
+    expect(resolved.status).toBe(200);
+    const row = await env.DB.prepare("SELECT status, acknowledged_by, resolution_note FROM workflow_incidents WHERE id = ?")
+      .bind(incidentId).first<{ status: string; acknowledged_by: string; resolution_note: string }>();
+    expect(row).toMatchObject({ status: "RESOLVED", acknowledged_by: user!.id, resolution_note: "人工复核后恢复完成。" });
+  });
+
+  it("closes outstanding incidents when a task recovers", async () => {
+    const owner = await register("ops-recovery@example.com");
+    const taskId = await createTask(owner, "Recovered task");
+    await openWorkflowIncident(env, { taskId, code: "MINIMAX_HTTP_429", severity: "WARNING", source: "AUTO_RETRY" });
+    await openWorkflowIncident(env, { taskId, code: "UPSTREAM_TIMEOUT", severity: "ERROR", source: "WORKFLOW_TERMINAL_FAILURE" });
+    await resolveTaskIncidents(env, taskId, "Golden-121 package frozen.");
+
+    const rows = await env.DB.prepare("SELECT status, resolution_note FROM workflow_incidents WHERE task_id = ?")
+      .bind(taskId).all<{ status: string; resolution_note: string }>();
+    expect(rows.results).toHaveLength(2);
+    expect(rows.results.every((row) => row.status === "RESOLVED")).toBe(true);
+    expect(rows.results.every((row) => row.resolution_note === "Golden-121 package frozen.")).toBe(true);
+  });
 });
