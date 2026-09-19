@@ -1,0 +1,13 @@
+node_modules/
+.wrangler/
+.dev.vars
+.env
+coverage/
+test-results/
+playwright-report/
+worker-configuration.d.ts
+
+# Local ZIP/DOCX inspection scratch output; never commit audit fixtures.
+_audit_docx.py
+_audit_task_*/
+_audit_render_*/

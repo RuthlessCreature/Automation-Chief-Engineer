@@ -1,0 +1,4 @@
+# The first deployed CAD gate only uses OCCT through OCP. Blender and build123d
+# belong to the later renderer image: shipping them here adds large layers but
+# provides no capability to the non-interactive G02 inspection command.
+cadquery-ocp-novtk==7.9.3.1.1

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#071527" />
+    <title>总工云台｜受控方案交付</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="noise"></div>
+    <main class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="总工云台首页"><span class="brand-mark">ZG</span><span>总工云台<small>CONTROLLED DELIVERY</small></span></a>
+        <div class="topbar-status"><span class="pulse"></span><span>Workflow fabric online</span><span class="divider"></span><span id="clock">--:--:--</span></div>
+        <div id="account" class="account"><button id="auth-button" class="button ghost">登录 / 注册</button></div>
+      </header>
+
+      <aside class="rail">
+        <button id="new-task" class="button primary full">＋ 新建受控任务</button>
+        <section class="credits-card"><span>AVAILABLE CREDITS</span><strong id="credits">—</strong><small>v0.1.0 暂不扣减</small></section>
+        <nav class="nav"><button class="nav-item active"><span>◉</span>任务中心</button><button class="nav-item"><span>◇</span>交付物仓</button><button class="nav-item"><span>◈</span>质量策略</button></nav>
+        <div class="rail-label">MY TASKS</div>
+        <div id="task-list" class="task-list"><div class="empty-mini">登录后查看任务</div></div>
+        <div class="rail-footer"><span>EDGE / D1 / R2 / DO</span><small>0.1.0 · Draft build</small></div>
+      </aside>
+
+      <section class="workspace">
+        <section id="welcome" class="welcome">
+          <div class="eyebrow">CHIEF ENGINEER ORCHESTRATION</div>
+          <h1>把方案生产过程，<br /><em>变成可审查的交付证据。</em></h1>
+          <p>每个子总工都有清晰的任务、输入、产出、质量闸门与交接记录。模型只负责产生候选，独立质量策略决定它是否能继续流转。</p>
+          <div class="welcome-actions"><button id="welcome-create" class="button primary">创建第一项任务 <span>→</span></button><button id="show-layers" class="button ghost">查看三层产物模型</button></div>
+          <div class="principles"><div><b>01</b><span>固定 15 阶段<br />禁止静默跳步</span></div><div><b>02</b><span>内部过程与客户交付<br />物理隔离</span></div><div><b>03</b><span>证据、哈希与闸门<br />独立于模型</span></div></div>
+        </section>
+
+        <section id="task-view" class="task-view hidden">
+          <div class="task-header"><div><div id="task-breadcrumb" class="eyebrow">TASK / —</div><h2 id="task-title">—</h2><p id="task-prompt">—</p></div><div class="task-actions"><span id="task-state" class="state DRAFT">DRAFT</span><button id="start-task" class="button primary">启动总工任务</button><button id="rework-task" class="button ghost" hidden>受控返工重跑</button></div></div>
+          <div class="layer-tabs" role="tablist"><button class="layer-tab active" data-layer="internal">INTERNAL WORKSPACE</button><button class="layer-tab" data-layer="preview">SAFE PREVIEW</button><button class="layer-tab" data-layer="delivery">CUSTOMER DELIVERY</button></div>
+          <div class="orchestration-head"><div><span class="eyebrow">LIVE ORCHESTRATION</span><strong id="progress-label">等待启动</strong></div><div class="progress-wrap"><div id="progress" class="progress"></div></div><span id="stage-count">0 / 15</span></div>
+          <div id="pipeline" class="pipeline"></div>
+        </section>
+      </section>
+
+      <aside class="inspector">
+        <div class="inspector-head"><div><span class="eyebrow">INSPECTOR</span><h3 id="inspector-title">过程证据</h3></div><span class="layer-chip" id="layer-chip">INTERNAL</span></div>
+        <div id="inspector-body" class="inspector-body"><div class="inspector-empty">选择任务后，这里展示子总工的产出、质量结论、交接信息和受控预览。</div></div>
+        <div class="event-title"><span>EVENT STREAM</span><span id="event-count">0</span></div>
+        <ol id="events" class="events"><li>等待任务事件</li></ol>
+      </aside>
+    </main>
+
+    <dialog id="auth-dialog"><form id="auth-form" method="dialog" class="modal"><button class="close" type="button" data-close-dialog="auth-dialog" aria-label="关闭">×</button><div class="eyebrow">ACCOUNT ACCESS</div><h2>进入总工云台</h2><p>注册后会获得 250 credits；当前版本仅展示余额，不扣减。</p><label>邮箱<input name="email" type="email" required autocomplete="email" placeholder="you@company.com" /></label><label>密码<input name="password" type="password" required minlength="12" autocomplete="current-password" placeholder="至少 12 位" /></label><div id="auth-error" class="form-error"></div><button id="auth-submit" class="button primary full" value="default">登录</button><button id="toggle-auth" class="text-button" type="button">没有账号？注册</button></form></dialog>
+    <dialog id="task-dialog"><form id="task-form" method="dialog" class="modal wide"><button class="close" type="button" data-close-dialog="task-dialog" aria-label="关闭">×</button><div class="eyebrow">NEW CONTROLLED TASK</div><h2>新建受控方案任务</h2><p>模型会先产出候选；只有通过独立质量闸门的阶段产物才会进入下一步。</p><label>任务标题<input name="title" required minlength="3" maxlength="120" placeholder="例如：风扇性能自动检测单元方案" /></label><label>工程提示词<textarea name="prompt" required minlength="20" maxlength="12000" placeholder="描述产品、节拍、输入资料、约束条件和期待的交付范围…"></textarea></label><label>内部输入资料 <small>单文件 ≤ 10 MiB；仅受控格式。原件只进入 Internal Workspace，不会直接对外预览。</small><input name="files" type="file" multiple accept=".pdf,.docx,.xlsx,.pptx,.txt,.csv,.json,.png,.jpg,.jpeg,.webp,.step,.stp,.stl" /></label><div id="task-error" class="form-error"></div><button id="task-submit" class="button primary full" type="submit" value="default">创建 DRAFT 任务</button></form></dialog>
+    <script type="module" src="/app.js"></script>
+    <script type="module" src="/app-fast.js"></script>
+    <script type="module" src="/delivery.js"></script>
+    <script type="module" src="/task-admin.js"></script>
+  </body>
+</html>

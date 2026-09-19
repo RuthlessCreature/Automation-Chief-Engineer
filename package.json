@@ -1,0 +1,26 @@
+{
+  "name": "automation-chief-engineer-cloud",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --local --port 8787 --var APP_ENV:local",
+    "check": "npm run types && tsc --noEmit && npm test && wrangler deploy --dry-run",
+    "types": "wrangler types --check",
+    "test": "vitest run",
+    "test:e2e": "playwright test test/production-browser.spec.ts",
+    "deploy:dry": "wrangler deploy --dry-run"
+  },
+  "dependencies": {
+    "@cloudflare/sandbox": "0.12.9"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.1.11",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.7.2",
+    "playwright": "^1.63.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0",
+    "wrangler": "^4.133.0"
+  }
+}
