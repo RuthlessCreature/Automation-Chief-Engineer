@@ -1,4 +1,4 @@
-import { buildConceptCadAssets, deriveCadDeliveryAssets } from "./cadcore";
+import { buildConceptCadAssets, deriveCadDeliveryAssets, validateGoldenDeliveryZip } from "./cadcore";
 import { PIPELINE } from "./domain";
 import {
   GOLDEN_SCHEMA,
@@ -276,6 +276,7 @@ export async function freezeGoldenCustomerDelivery(env: Env, taskId: string): Pr
 
   const customerRoot = goldenRoot(task.title);
   const zipBytes = buildStoredZip(allEntries.map((entry) => ({ name: customerRoot + "/" + entry.relativePath, data: entry.data })));
+  await validateGoldenDeliveryZip(env, taskId, zipBytes);
   const packageHash = await sha256(zipBytes);
   const packageId = existing?.id ?? crypto.randomUUID();
   const storageRoot = "tasks/" + taskId + "/delivery/" + packageId;
