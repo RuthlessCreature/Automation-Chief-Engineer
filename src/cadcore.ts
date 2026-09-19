@@ -84,3 +84,86 @@ export async function inspectCadInCadcore(env: Env, input: CadInput): Promise<Ca
 }
 
 export const inspectStepInCadcore = inspectCadInCadcore;
+
+export type CadDeliveryAssetKeys = {
+  brepKey: string;
+  stepKey: string;
+  stlKey: string;
+  brepSha256: string;
+  stepSha256: string;
+  stlSha256: string;
+};
+
+async function readSandboxBinary(sandbox: ReturnType<typeof getSandbox>, path: string): Promise<ArrayBuffer> {
+  const file = await sandbox.readFile(path, { encoding: "base64" });
+  if (!file.success || !file.content) throw new Error("CADCORE_DELIVERY_OUTPUT_UNAVAILABLE");
+  return base64ToArrayBuffer(file.content);
+}
+
+/** Re-export a validated normalized BREP as real STEP/STL customer derivatives. */
+export async function deriveCadDeliveryAssets(
+  env: Env,
+  input: { taskId: string; inputId: string; normalizedBrepKey: string },
+): Promise<CadDeliveryAssetKeys> {
+  const source = await env.ARTIFACTS.get(input.normalizedBrepKey);
+  if (!source?.body) throw new Error("DELIVERY_CADCORE_BREP_MISSING");
+  const sandbox = getSandbox(env.CADCORE, `cad-${input.taskId}`, { sleepAfter: "5m", normalizeId: true, transport: "rpc" });
+  const workspace = `/workspace/cad/delivery/${input.inputId}`;
+  const brepPath = `${workspace}/normalized.brep`;
+  const stepPath = `${workspace}/normalized.step`;
+  const stlPath = `${workspace}/normalized.stl`;
+  await sandbox.mkdir(workspace, { recursive: true });
+  await sandbox.writeFile(brepPath, source.body);
+  const execution = await sandbox.exec(
+    `python3 /opt/cadcore/export_delivery.py --brep ${brepPath} --step ${stepPath} --stl ${stlPath}`,
+    { cwd: workspace },
+  );
+  if (!execution.success) throw new Error("DELIVERY_CADCORE_EXPORT_FAILED");
+  const [step, stl] = await Promise.all([readSandboxBinary(sandbox, stepPath), readSandboxBinary(sandbox, stlPath)]);
+  const brepObject = await env.ARTIFACTS.get(input.normalizedBrepKey);
+  if (!brepObject) throw new Error("DELIVERY_CADCORE_BREP_MISSING");
+  const brep = await brepObject.arrayBuffer();
+  const root = `tasks/${input.taskId}/cad/g02/${input.inputId}`;
+  const stepKey = `${root}/delivery.step`;
+  const stlKey = `${root}/delivery.stl`;
+  const [brepSha256, stepSha256, stlSha256] = await Promise.all([sha256(brep), sha256(step), sha256(stl)]);
+  await env.ARTIFACTS.put(stepKey, step, { httpMetadata: { contentType: "model/step" }, customMetadata: { taskId: input.taskId, inputId: input.inputId, sha256: stepSha256, classification: "CUSTOMER_CAD_DERIVATIVE" } });
+  await env.ARTIFACTS.put(stlKey, stl, { httpMetadata: { contentType: "model/stl" }, customMetadata: { taskId: input.taskId, inputId: input.inputId, sha256: stlSha256, classification: "CUSTOMER_CAD_DERIVATIVE" } });
+  return { brepKey: input.normalizedBrepKey, stepKey, stlKey, brepSha256, stepSha256, stlSha256 };
+}
+
+/** Build a controlled, explicitly unverified concept-machine CAD envelope. */
+export async function buildConceptCadAssets(
+  env: Env,
+  taskId: string,
+  envelope: { widthMm: number; depthMm: number; heightMm: number },
+): Promise<CadDeliveryAssetKeys> {
+  const clamp = (value: number) => Math.max(500, Math.min(6000, Math.round(value)));
+  const width = clamp(envelope.widthMm), depth = clamp(envelope.depthMm), height = clamp(envelope.heightMm);
+  const sandbox = getSandbox(env.CADCORE, `cad-${taskId}`, { sleepAfter: "5m", normalizeId: true, transport: "rpc" });
+  const workspace = "/workspace/cad/concept/r01";
+  const brepPath = `${workspace}/concept.brep`;
+  const stepPath = `${workspace}/concept.step`;
+  const stlPath = `${workspace}/concept.stl`;
+  await sandbox.mkdir(workspace, { recursive: true });
+  const execution = await sandbox.exec(
+    `python3 /opt/cadcore/build_concept.py --width ${width} --depth ${depth} --height ${height} --brep ${brepPath} --step ${stepPath} --stl ${stlPath}`,
+    { cwd: workspace },
+  );
+  if (!execution.success) throw new Error("DELIVERY_CONCEPT_CAD_BUILD_FAILED");
+  const [brep, step, stl] = await Promise.all([
+    readSandboxBinary(sandbox, brepPath),
+    readSandboxBinary(sandbox, stepPath),
+    readSandboxBinary(sandbox, stlPath),
+  ]);
+  const root = `tasks/${taskId}/cad/concept/r01`;
+  const brepKey = `${root}/concept.brep`, stepKey = `${root}/concept.step`, stlKey = `${root}/concept.stl`;
+  const [brepSha256, stepSha256, stlSha256] = await Promise.all([sha256(brep), sha256(step), sha256(stl)]);
+  await Promise.all([
+    env.ARTIFACTS.put(brepKey, brep, { httpMetadata: { contentType: "application/octet-stream" }, customMetadata: { taskId, sha256: brepSha256, maturity: "ASM_NOT_VERIFIED" } }),
+    env.ARTIFACTS.put(stepKey, step, { httpMetadata: { contentType: "model/step" }, customMetadata: { taskId, sha256: stepSha256, maturity: "ASM_NOT_VERIFIED" } }),
+    env.ARTIFACTS.put(stlKey, stl, { httpMetadata: { contentType: "model/stl" }, customMetadata: { taskId, sha256: stlSha256, maturity: "ASM_NOT_VERIFIED" } }),
+  ]);
+  return { brepKey, stepKey, stlKey, brepSha256, stepSha256, stlSha256 };
+}
+
