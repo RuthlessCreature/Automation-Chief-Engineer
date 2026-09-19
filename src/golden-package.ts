@@ -12,8 +12,8 @@ import {
   readme,
   root as goldenRoot,
   svg,
-  views,
-  visuals,
+  geometryViews,
+  geometryVisuals,
   xlsx,
   type Entry,
   type Report,
@@ -229,7 +229,7 @@ export async function freezeGoldenCustomerDelivery(env: Env, taskId: string): Pr
     { relativePath: "02_产品CAD与视图/product.brep", data: productBrepBytes, description: "CADCore normalized product BREP", ownerModule: "ProductCAD", status: "CADCORE_DERIVED", validationResult: "PASS" },
     { relativePath: "02_产品CAD与视图/product.step", data: productStepBytes, description: "CADCore product STEP derivative", ownerModule: "ProductCAD", status: "CADCORE_DERIVED", validationResult: "PASS" },
     { relativePath: "02_产品CAD与视图/product.stl", data: productStlBytes, description: "CADCore product STL derivative", ownerModule: "ProductCAD", status: "CADCORE_DERIVED", validationResult: "PASS" },
-    ...views("02_产品CAD与视图", true),
+    ...geometryViews("02_产品CAD与视图", productStlBytes, true),
   );
 
   const conceptCad = await buildConceptCadAssets(env, taskId, conceptEnvelope);
@@ -241,8 +241,8 @@ export async function freezeGoldenCustomerDelivery(env: Env, taskId: string): Pr
     { relativePath: "03_整机概念CAD与视图/concept.brep", data: conceptBrepBytes, description: "受控概念整机 BREP", ownerModule: "Mechanical", status: "ASM_NOT_VERIFIED", validationResult: "PASS" },
     { relativePath: "03_整机概念CAD与视图/concept.step", data: conceptStepBytes, description: "受控概念整机 STEP", ownerModule: "Mechanical", status: "ASM_NOT_VERIFIED", validationResult: "PASS" },
     { relativePath: "03_整机概念CAD与视图/concept.stl", data: conceptStlBytes, description: "受控概念整机 STL", ownerModule: "Mechanical", status: "ASM_NOT_VERIFIED", validationResult: "PASS" },
-    ...views("03_整机概念CAD与视图", false),
-    ...visuals(),
+    ...geometryViews("03_整机概念CAD与视图", conceptStlBytes, false),
+    ...geometryVisuals(productStlBytes, conceptStlBytes),
   );
 
   if (payload.length !== 119) throw new Error("DELIVERY_GOLDEN_PAYLOAD_COUNT_MISMATCH:" + payload.length);
