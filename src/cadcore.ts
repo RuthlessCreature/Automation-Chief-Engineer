@@ -167,3 +167,18 @@ export async function buildConceptCadAssets(
   return { brepKey, stepKey, stlKey, brepSha256, stepSha256, stlSha256 };
 }
 
+
+
+/** Run the repository's authoritative Golden-121 validator inside CADCore before freezing a customer ZIP. */
+export async function validateGoldenDeliveryZip(env: Env, taskId: string, zipBytes: Uint8Array): Promise<void> {
+  const sandbox = getSandbox(env.CADCORE, `cad-${taskId}`, { sleepAfter: "5m", normalizeId: true, transport: "rpc" });
+  const workspace = "/workspace/cad/validate/golden-r01";
+  const zipPath = `${workspace}/customer-delivery.zip`;
+  await sandbox.mkdir(workspace, { recursive: true });
+  await sandbox.writeFile(zipPath, zipBytes);
+  const execution = await sandbox.exec(
+    `python3 /opt/cadcore/validate_r2_f10_golden_delivery.py ${zipPath}`,
+    { cwd: workspace },
+  );
+  if (!execution.success) throw new Error("DELIVERY_GOLDEN_VALIDATOR_REWORK");
+}
