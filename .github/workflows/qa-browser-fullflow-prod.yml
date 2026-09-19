@@ -1,0 +1,48 @@
+name: qa-browser-fullflow-production
+
+on:
+  push:
+    branches:
+      - qa/browser-fullflow-20260919-v2
+    paths:
+      - test/production-fullflow-ui.spec.ts
+      - .github/workflows/qa-browser-fullflow-prod.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-browser-fullflow-production
+  cancel-in-progress: false
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 80
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate production credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo "::error::Missing CLOUDFLARE_API_TOKEN"; exit 1; }
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}" || { echo "::error::Missing CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Run production UI full-flow acceptance
+        run: npx playwright test test/production-fullflow-ui.spec.ts --workers=1 --reporter=line
