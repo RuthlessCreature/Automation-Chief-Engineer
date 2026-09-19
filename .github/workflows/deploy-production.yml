@@ -72,7 +72,7 @@ jobs:
         run: npx wrangler d1 migrations list automation-chief-engineer-cloud --remote
 
       - name: Apply remote D1 migrations
-        run: npx wrangler d1 migrations apply automation-chief-engineer-cloud --remote --yes
+        run: npx wrangler d1 migrations apply automation-chief-engineer-cloud --remote
 
       - name: Deploy Worker, assets, workflow and container
         run: npx wrangler deploy
