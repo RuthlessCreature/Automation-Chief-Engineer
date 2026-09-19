@@ -62,14 +62,14 @@ export class TaskWorkflow extends WorkflowEntrypoint<Env, TaskWorkflowParams> {
       }
 
       await step.do("mark package assembly started", async () => {
-        await this.env.DB.prepare("UPDATE tasks SET state = 'PACKAGING', quality_status = 'PASS', updated_at = ? WHERE id = ?")
+        await this.env.DB.prepare("UPDATE tasks SET state = 'PACKAGING', quality_status = 'PENDING', updated_at = ? WHERE id = ?")
           .bind(isoNow(), task.id)
           .run();
         await coordinator!.publish({
           type: "TASK_STATE",
           stageId: "chief_review",
           message: "总工审查通过；正在冻结客户交付清单和 ZIP。",
-          payload: { state: "PACKAGING", qualityStatus: "PASS", customerZipReady: false },
+          payload: { state: "PACKAGING", qualityStatus: "PENDING", customerZipReady: false },
           createdAt: isoNow(),
         });
         return { state: "PACKAGING" };
@@ -101,9 +101,24 @@ export class TaskWorkflow extends WorkflowEntrypoint<Env, TaskWorkflowParams> {
         // scheduled for a deliberately rejected candidate.
         return;
       }
+      if (code.startsWith("DELIVERY_")) {
+        await this.env.DB.prepare("UPDATE tasks SET state = 'QUALITY_BLOCKED', quality_status = 'BLOCKED', updated_at = ? WHERE id = ?")
+          .bind(isoNow(), event.payload.taskId)
+          .run();
+        if (coordinator) {
+          await coordinator.publish({
+            type: "QUALITY_BLOCKED",
+            stageId: "chief_review",
+            message: `Golden-121 交付门禁阻断：${code}。缺失或不一致资产不会被伪装成完成交付。`,
+            payload: { state: "QUALITY_BLOCKED", qualityStatus: "BLOCKED", errorCode: code, customerZipReady: false },
+            createdAt: isoNow(),
+          });
+        }
+        return;
+      }
       const retryScheduled = await this.scheduleAutomaticRetry(event.payload, code, coordinator);
       if (retryScheduled) return;
-      await this.env.DB.prepare("UPDATE tasks SET state = 'FAILED', quality_status = 'BLOCKED', updated_at = ? WHERE id = ? AND state IN ('QUEUED', 'RUNNING')")
+      await this.env.DB.prepare("UPDATE tasks SET state = 'FAILED', quality_status = 'BLOCKED', updated_at = ? WHERE id = ? AND state IN ('QUEUED', 'RUNNING', 'PACKAGING')")
         .bind(isoNow(), event.payload.taskId)
         .run();
       if (coordinator) {
