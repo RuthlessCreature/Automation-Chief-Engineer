@@ -140,4 +140,46 @@ describe("task ownership and state-machine regression", () => {
     const visible = await SELF.fetch(`https://worker.test/api/tasks/${taskId}`, { headers: { Cookie: owner } });
     expect(visible.status).toBe(200);
   });
+  it("serves Golden-121 safe previews only from a frozen owned delivery", async () => {
+    const owner = await register("preview-owner@example.com");
+    const taskId = await createTask(owner, "Preview task");
+    await seedFrozenDelivery(taskId);
+
+    const storageKey = `tasks/${taskId}/artifacts/requirements/preview.md`;
+    await env.ARTIFACTS.put(storageKey, "功能需求、性能需求、接口需求与待验证假设。");
+    await env.DB.prepare(
+      "INSERT INTO artifacts (id, task_id, stage_id, kind, title, storage_key, sha256, status, provenance_json, created_at, visibility) VALUES (?, ?, 'requirements', 'stage-report', ?, ?, ?, 'ACCEPTED', ?, ?, 'INTERNAL')",
+    ).bind(
+      "artifact-" + taskId,
+      taskId,
+      "需求工程",
+      storageKey,
+      "B".repeat(64),
+      JSON.stringify({ provider: "fixture", model: "fixture-v1", evidence: ["INPUT-task-prompt", "RULE-G01"] }),
+      new Date().toISOString(),
+    ).run();
+
+    const wordPreview = await SELF.fetch(
+      `https://worker.test/api/tasks/${taskId}/delivery/preview?asset=technical-solution`,
+      { headers: { Cookie: owner } },
+    );
+    expect(wordPreview.status).toBe(200);
+    expect(wordPreview.headers.get("Content-Security-Policy")).toContain("default-src 'none'");
+    expect(wordPreview.headers.get("X-Preview-Source")).toBe("GOLDEN-121 技术方案书.docx");
+    expect(await wordPreview.text()).toContain("需求工程");
+
+    const xlsxPreview = await SELF.fetch(
+      `https://worker.test/api/tasks/${taskId}/delivery/preview?asset=engineering-data`,
+      { headers: { Cookie: owner } },
+    );
+    expect(xlsxPreview.status).toBe(200);
+    expect(xlsxPreview.headers.get("X-Preview-Source")).toBe("GOLDEN-121 工程数据包.xlsx");
+
+    const invalid = await SELF.fetch(
+      `https://worker.test/api/tasks/${taskId}/delivery/preview?asset=../../secret`,
+      { headers: { Cookie: owner } },
+    );
+    expect(invalid.status).toBe(400);
+  });
+
 });
