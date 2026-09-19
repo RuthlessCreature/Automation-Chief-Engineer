@@ -8,7 +8,7 @@
 
 - GitHub：`https://github.com/RuthlessCreature/Automation-Chief-Engineer.git`
 - 主分支：`main`
-- 当前主线提交：`944a53e1710d59a6ff667bf9d3019bdf09221a5b`
+- 当前主线提交：`b8889ffb1d3fc22552dd9965feeee9ed5f8d91aa`
 - P0 Golden-121 合并提交：`ed276071d499606caa862db4d63fbb03e20ad54a`
 - P1 Recovery / Regression / Operations 合并提交：`8eade85aa95de585cfacd31f9899137ad2ef3789`
 - 当前质量策略：`GB-ACE-DELIVERY-V3-GOLDEN-121`
@@ -32,10 +32,10 @@ P0、P1 的功能分支均已通过 TypeScript、单元/集成测试、Golden �
 
 2026-09-19 已通过 `.github/workflows/deploy-production.yml` 完成生产发布：
 
-- 对应应用代码基线：`main@944a53e1710d59a6ff667bf9d3019bdf09221a5b`
+- 当前生产应用代码基线：`main@b8889ffb1d3fc22552dd9965feeee9ed5f8d91aa`
 - GitHub Actions production run：`35428890455`
 - D1 migration：`0009_workflow_incidents.sql` 已成功应用
-- Cloudflare Worker Current Version ID：`64043ed4-e809-4963-a1e0-08c5b2a43b6f`
+- Cloudflare Worker Current Version ID：`4417ed1e-f827-428b-8c5d-768fad75415a`
 - custom domain：`zg.gaona.world`
 - Workflow：`ace-task-workflow`
 - production smoke：首次尝试通过
@@ -123,6 +123,19 @@ G15 冻结前会把最终 ZIP 写入 CADCore Sandbox，并实际执行权威 Pyt
 - 必需目录或资产缺失。
 
 `PACKAGED/PASS` 因此代表当前确定性交付合同已通过，不再只是“模型说完成”。
+
+### 无客户产品 CAD 的合法交付模式
+
+2026-09-19 的生产 5015 重跑暴露出一个真实 G15 合同缺陷：历史任务没有上传 STEP/STP/STL，但 Golden-121 旧逻辑无条件要求“恰好 1 个产品 CAD”，导致 15 阶段完成后仍被 `DELIVERY_GOLDEN_PRODUCT_CAD_REQUIRED` 阻断。
+
+修复已合入 `b8889ffb1d3fc22552dd9965feeee9ed5f8d91aa` 并发布生产。当前合同区分三种情况：
+
+- 恰好 1 个真实 STEP/STP/STL：继续走 CADCore 派生 BREP/STEP/STL 与产品几何视图；
+- 0 个产品 CAD：使用显式 `NO_PRODUCT_CAD_PROVIDED` 证据模式，不生成或伪造产品 BREP/STEP/STL；
+- 多于 1 个产品 CAD：仍以 `DELIVERY_GOLDEN_PRODUCT_CAD_AMBIGUOUS` 阻断，禁止静默选取。
+
+无产品 CAD 模式在 `02_产品CAD与视图` 中交付受控声明、机读状态和 6 张范围边界 SVG；Manifest 标记 `Status=NO_PRODUCT_CAD`、`Validation Result=SOURCE_CAD_NOT_PROVIDED`。权威 Python validator 对该模式进行独立验证，同时仍要求 121 个 ZIP 文件 / 119 个客户载荷。
+
 
 ### 仍需正确理解的边界
 
@@ -272,6 +285,27 @@ Safe Preview 是安全派生内容，不代表直接暴露 ZIP 内 Office 原文
 
 所有一次性 push trigger 均已恢复成 manual-only，没有留下自动发布后门。
 
+随后针对 no-product-CAD 合同修复执行了第四次受控生产发布：
+
+- 应用基线：`b8889ffb1d3fc22552dd9965feeee9ed5f8d91aa`；
+- production deploy run：`35432048871`；
+- Worker Current Version ID：`4417ed1e-f827-428b-8c5d-768fad75415a`；
+- 全部质量门、deploy、production smoke attempt 1：PASS。
+
+同日对新建的历史 5015 生产重跑任务执行完整受控 rework：
+
+- rework verification run：`35432199552`；
+- 任务状态：`QUEUED → RUNNING → PACKAGING → PACKAGED`；
+- 最终质量：`PASS`；
+- 当前质量策略下接受的 stage-report：15/15；
+- 产品 CAD 输入：0；
+- no-product-CAD evidence：PASS；
+- 最终 ZIP：已冻结并下载复验；
+- authoritative Golden-121 validator：PASS。
+
+该结果证明“无客户产品 CAD”场景现在可在不伪造 CAD 的前提下完成结构合同交付；仍不代表历史 5015/FCT 样本的视觉和制造工程丰富度已被人工审计为等价。
+
+
 ## 10. 仍然未完成 / 外部条件
 
 ### B. 生产 E2E
@@ -293,7 +327,7 @@ npm run test:e2e
 
 ### D. 历史 golden sample 丰富度审计
 
-部署新版本后，应选择一个真实项目重新生成 Golden-121 包，并与历史 5015 / FCT 样本做人工工程审计：
+生产 5015 已完成 Golden-121 结构合同重跑、冻结、下载和权威 validator 复验。**尚未完成的是人工工程丰富度对标**，仍应将新包与历史 5015 / FCT 样本逐项审计：
 
 - 视觉利用率与图像质量；
 - Word 章节内容深度；
@@ -349,9 +383,9 @@ cmp scripts/validate_r2_f10_golden_delivery.py cadcore/runner/validate_r2_f10_go
 
 ## 12. 部署后的第一轮生产验证
 
-建议使用旧任务或新建专用测试任务执行完整受控返工，而不是继续信任 V2 时代的旧 `PACKAGED/PASS`。
+2026-09-19 已使用历史 5015 新建生产重跑任务，并在修复 no-product-CAD G15 合同后执行完整受控返工。结构性生产验收已完成：15 阶段、PACKAGED/PASS、FROZEN ZIP、SHA 校验、no-product-CAD 证据和权威 validator 均通过。
 
-验证顺序：
+后续真实项目仍按以下顺序验证：
 
 1. 确认 D1 迁移 0009 已应用；
 2. 登录生产；
