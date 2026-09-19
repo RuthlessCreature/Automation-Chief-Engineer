@@ -27,3 +27,5 @@ jobs:
       - name: Read replay state only
         run: |
           npx wrangler d1 execute automation-chief-engineer-cloud --remote --json --command "SELECT t.id,t.state,t.quality_status,t.last_error_code,t.created_at FROM tasks t JOIN users u ON u.id=t.owner_id WHERE u.email='test@test.com' AND t.title='5015 | Golden-121 PROD rerun | 2026-09-19' ORDER BY t.created_at DESC LIMIT 1"
+
+# poll-2
