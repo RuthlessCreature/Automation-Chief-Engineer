@@ -77,6 +77,10 @@ async function requireUser(request: Request, env: Env): Promise<UserRow> {
   return user;
 }
 
+function requireOpsRole(user: UserRow): void {
+  if (!["reviewer", "admin", "system"].includes(user.role)) throw new HttpError(403, "该账号无权访问运维事件台账。");
+}
+
 async function requireTaskOwner(env: Env, userId: string, taskId: string): Promise<TaskRow> {
   const task = await env.DB.prepare("SELECT * FROM tasks WHERE id = ? AND owner_id = ? AND deleted_at IS NULL")
     .bind(taskId, userId)
@@ -192,6 +196,65 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
   }
 
   const user = await requireUser(request, env);
+
+  if (method === "GET" && url.pathname === "/api/ops/health") {
+    requireOpsRole(user);
+    const taskStates = await env.DB.prepare(
+      "SELECT state, COUNT(*) AS count FROM tasks WHERE deleted_at IS NULL GROUP BY state",
+    ).all<{ state: string; count: number }>();
+    const incidentStates = await env.DB.prepare(
+      "SELECT status, severity, COUNT(*) AS count FROM workflow_incidents GROUP BY status, severity",
+    ).all<{ status: string; severity: string; count: number }>();
+    const retryStats = await env.DB.prepare(
+      "SELECT status, COUNT(*) AS count FROM workflow_retry_attempts GROUP BY status",
+    ).all<{ status: string; count: number }>();
+    return json({
+      generatedAt: isoNow(),
+      tasks: taskStates.results,
+      incidents: incidentStates.results,
+      retries: retryStats.results,
+    });
+  }
+
+  if (method === "GET" && url.pathname === "/api/ops/incidents") {
+    requireOpsRole(user);
+    const requestedStatus = (url.searchParams.get("status") ?? "OPEN").toUpperCase();
+    if (!["OPEN", "ACKNOWLEDGED", "RESOLVED", "ALL"].includes(requestedStatus)) throw new HttpError(400, "status 必须为 OPEN、ACKNOWLEDGED、RESOLVED 或 ALL。");
+    const limit = Math.max(1, Math.min(200, Number.parseInt(url.searchParams.get("limit") ?? "100", 10) || 100));
+    const query = requestedStatus === "ALL"
+      ? "SELECT i.*, t.title AS task_title, t.state AS task_state FROM workflow_incidents i JOIN tasks t ON t.id = i.task_id ORDER BY i.created_at DESC LIMIT ?"
+      : "SELECT i.*, t.title AS task_title, t.state AS task_state FROM workflow_incidents i JOIN tasks t ON t.id = i.task_id WHERE i.status = ? ORDER BY i.created_at DESC LIMIT ?";
+    const incidents = requestedStatus === "ALL"
+      ? await env.DB.prepare(query).bind(limit).all()
+      : await env.DB.prepare(query).bind(requestedStatus, limit).all();
+    return json({ incidents: incidents.results, status: requestedStatus, limit });
+  }
+
+  if (method === "POST" && parts.length === 5 && parts[0] === "api" && parts[1] === "ops" && parts[2] === "incidents" && parts[4] === "acknowledge") {
+    requireOpsRole(user);
+    const incidentId = parts[3]!;
+    const now = isoNow();
+    const result = await env.DB.prepare(
+      "UPDATE workflow_incidents SET status = 'ACKNOWLEDGED', acknowledged_at = ?, acknowledged_by = ?, updated_at = ? WHERE id = ? AND status = 'OPEN'",
+    ).bind(now, user.id, now, incidentId).run();
+    if (!result.meta.changes) throw new HttpError(404, "开放运维事件不存在或已被处理。");
+    await audit(env, "WORKFLOW_INCIDENT_ACKNOWLEDGED", user.id, null, { incidentId });
+    return json({ incidentId, status: "ACKNOWLEDGED", acknowledgedAt: now });
+  }
+
+  if (method === "POST" && parts.length === 5 && parts[0] === "api" && parts[1] === "ops" && parts[2] === "incidents" && parts[4] === "resolve") {
+    requireOpsRole(user);
+    const incidentId = parts[3]!;
+    const body = await readBody(request);
+    const note = textField(body, "note", 3, 500);
+    const now = isoNow();
+    const result = await env.DB.prepare(
+      "UPDATE workflow_incidents SET status = 'RESOLVED', resolved_at = ?, updated_at = ?, resolution_note = ? WHERE id = ? AND status IN ('OPEN', 'ACKNOWLEDGED')",
+    ).bind(now, now, note, incidentId).run();
+    if (!result.meta.changes) throw new HttpError(404, "运维事件不存在或已经关闭。");
+    await audit(env, "WORKFLOW_INCIDENT_RESOLVED", user.id, null, { incidentId, noteLength: note.length });
+    return json({ incidentId, status: "RESOLVED", resolvedAt: now });
+  }
 
   if (method === "GET" && url.pathname === "/api/tasks") {
     const tasks = await env.DB.prepare("SELECT * FROM tasks WHERE owner_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 100")
@@ -475,6 +538,8 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
       env.DB.prepare("UPDATE delivery_packages SET status = 'REJECTED' WHERE task_id = ? AND status = 'FROZEN'").bind(task.id),
       env.DB.prepare("UPDATE tasks SET state = 'QUEUED', quality_status = 'PENDING', retry_count = 0, last_error_code = NULL, workflow_instance_id = ?, updated_at = ? WHERE id = ? AND owner_id = ? AND state IN ('QUALITY_BLOCKED', 'FAILED', 'PACKAGED')")
         .bind(instanceId, updatedAt, task.id, user.id),
+      env.DB.prepare("UPDATE workflow_incidents SET status = 'ACKNOWLEDGED', acknowledged_at = ?, acknowledged_by = ?, updated_at = ?, resolution_note = ? WHERE task_id = ? AND status = 'OPEN'")
+        .bind(updatedAt, user.id, updatedAt, "任务所有者已启动受控返工。", task.id),
     ]);
     const coordinator = env.TASK_COORDINATOR.getByName(task.id) as DurableObjectStub<TaskCoordinator>;
     await coordinator.publish({ type: "TASK_STATE", message: "任务已进入完整受控重建；历史候选已标记为拒绝，全部阶段按当前质量策略重新审查。", payload: { state: "QUEUED", rework: true, fullRebuild: true, creditsCharged: false }, createdAt: updatedAt });
