@@ -1,31 +1,14 @@
 name: verify-delivery-panel-production
 
 on:
-  push:
-    branches:
-      - ops/verify-delivery-panel-prod-20260919
-    paths:
-      - scripts/verify_delivery_panel_prod.py
-      - .github/workflows/verify-delivery-panel-prod.yml
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  verify:
+  disabled:
+    if: ${{ false }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    environment: production
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: python -m py_compile scripts/verify_delivery_panel_prod.py
-      - name: Verify deployed delivery assets and frozen ZIP
-        run: python scripts/verify_delivery_panel_prod.py
+      - run: echo "One-time production delivery panel verification is disabled."
