@@ -7,6 +7,7 @@ import { isoNow } from "./security";
 import { freezeCustomerDelivery } from "./package";
 import type { TaskCoordinator } from "./task-coordinator";
 import { runStageHarness } from "./harness";
+import { openWorkflowIncident, resolveTaskIncidents } from "./incidents";
 
 export type TaskWorkflowParams = { taskId: string; ownerId: string; prompt: string };
 
@@ -79,6 +80,7 @@ export class TaskWorkflow extends WorkflowEntrypoint<Env, TaskWorkflowParams> {
         await this.env.DB.prepare("UPDATE tasks SET state = 'PACKAGED', quality_status = 'PASS', updated_at = ? WHERE id = ?")
           .bind(isoNow(), task.id)
           .run();
+        await resolveTaskIncidents(this.env, task.id, "任务已通过当前质量策略并冻结 Golden-121 客户交付包。");
         return delivery;
       });
       await step.do("announce customer delivery frozen", async () => {
@@ -102,6 +104,13 @@ export class TaskWorkflow extends WorkflowEntrypoint<Env, TaskWorkflowParams> {
         return;
       }
       if (code.startsWith("DELIVERY_")) {
+        await openWorkflowIncident(this.env, {
+          taskId: event.payload.taskId,
+          code,
+          severity: "WARNING",
+          source: "G15_DELIVERY_GATE",
+          detail: { customerZipReady: false, qualityBlocked: true },
+        });
         await this.env.DB.prepare("UPDATE tasks SET state = 'QUALITY_BLOCKED', quality_status = 'BLOCKED', updated_at = ? WHERE id = ?")
           .bind(isoNow(), event.payload.taskId)
           .run();
@@ -118,6 +127,13 @@ export class TaskWorkflow extends WorkflowEntrypoint<Env, TaskWorkflowParams> {
       }
       const retryScheduled = await this.scheduleAutomaticRetry(event.payload, code, coordinator);
       if (retryScheduled) return;
+      await openWorkflowIncident(this.env, {
+        taskId: event.payload.taskId,
+        code,
+        severity: "ERROR",
+        source: "WORKFLOW_TERMINAL_FAILURE",
+        detail: { retryExhausted: isRetryableWorkflowError(code), creditsCharged: false },
+      });
       await this.env.DB.prepare("UPDATE tasks SET state = 'FAILED', quality_status = 'BLOCKED', updated_at = ? WHERE id = ? AND state IN ('QUEUED', 'RUNNING', 'PACKAGING')")
         .bind(isoNow(), event.payload.taskId)
         .run();
@@ -189,6 +205,13 @@ export class TaskWorkflow extends WorkflowEntrypoint<Env, TaskWorkflowParams> {
       this.env.DB.prepare("INSERT INTO workflow_retry_attempts (id, task_id, attempt, previous_workflow_id, workflow_id, error_code, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'SCHEDULED', ?)")
         .bind(retryId, payload.taskId, attempt, row.workflow_instance_id, workflowId, code, isoNow()),
     ]);
+    await openWorkflowIncident(this.env, {
+      taskId: payload.taskId,
+      code,
+      severity: "WARNING",
+      source: "AUTO_RETRY",
+      detail: { retryAttempt: attempt, maxAttempts: 2, workflowId },
+    });
     await coordinator?.publish({ type: "TASK_STATE", message: `检测到可恢复错误 ${code}；后台将自动重试第 ${attempt}/2 次。`, payload: { state: "QUEUED", retryAttempt: attempt, retryable: true, errorCode: code }, createdAt: isoNow() });
     try {
       await this.env.TASK_WORKFLOW.create({ id: workflowId, params: payload });
