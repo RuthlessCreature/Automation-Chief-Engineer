@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GOLDEN_SHEETS, docx, openCsv, pdf, pptx, views, visuals, xlsx, type Report } from "../src/golden-delivery";
+import { GOLDEN_SHEETS, docx, geometryViews, geometryVisuals, openCsv, pdf, pptx, views, visuals, xlsx, type Report } from "../src/golden-delivery";
 
 const reports: Report[] = [{
   stageId: "mechanical",
@@ -9,6 +9,16 @@ const reports: Report[] = [{
   provider: "test",
   model: "fixture",
 }];
+
+
+function tinyBinaryStl(): Uint8Array {
+  const bytes = new Uint8Array(84 + 50);
+  const view = new DataView(bytes.buffer);
+  view.setUint32(80, 1, true);
+  const vertices = [0, 0, 0, 100, 0, 0, 0, 100, 20];
+  for (let index = 0; index < vertices.length; index += 1) view.setFloat32(96 + index * 4, vertices[index]!, true);
+  return bytes;
+}
 
 function entries(bytes: Uint8Array): Map<string, Uint8Array> {
   const result = new Map<string, Uint8Array>();
@@ -68,6 +78,12 @@ describe("Golden-121 deterministic assets", () => {
     expect(views("02_产品CAD与视图", true)).toHaveLength(5);
     expect(views("03_整机概念CAD与视图", false)).toHaveLength(5);
     expect(visuals()).toHaveLength(96);
+    const stl = tinyBinaryStl();
+    const productViews = geometryViews("02_产品CAD与视图", stl, true);
+    const evidence = geometryVisuals(stl, stl);
+    expect(productViews).toHaveLength(5);
+    expect(evidence).toHaveLength(96);
+    expect([...productViews, ...evidence].every((entry) => entry.data.slice(0, 8).every((byte, index) => byte === [137,80,78,71,13,10,26,10][index]))).toBe(true);
     expect(new TextDecoder().decode(openCsv()).trim().split(/\r?\n/)).toHaveLength(15);
   });
 });
