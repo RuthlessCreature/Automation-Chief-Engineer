@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PIPELINE } from "../src/domain";
 import { GOLDEN_SHEETS, docx, geometryViews, geometryVisuals, openCsv, pdf, pptx, views, visuals, xlsx, type Report } from "../src/golden-delivery";
+import { noProductCadEvidence } from "../src/golden-package";
 
 const reports: Report[] = [{
   stageId: "mechanical",
@@ -73,6 +74,23 @@ describe("Golden-121 deterministic assets", () => {
     expect(text.startsWith("%PDF-1.4")).toBe(true);
     const match = text.match(/startxref\n(\d+)\n%%EOF/);
     expect(Number(match?.[1] ?? 0)).toBeGreaterThan(0);
+  });
+
+  it("builds an explicit no-product-CAD evidence set without fake CAD files", () => {
+    const evidence = noProductCadEvidence();
+    expect(evidence).toHaveLength(8);
+    expect(evidence.some((entry) => /\.(brep|step|stp|stl)$/i.test(entry.relativePath))).toBe(false);
+    expect(evidence.every((entry) => entry.status === "NO_PRODUCT_CAD")).toBe(true);
+    expect(evidence.every((entry) => entry.validationResult === "SOURCE_CAD_NOT_PROVIDED")).toBe(true);
+    const note = evidence.find((entry) => entry.relativePath.endsWith("PRODUCT_CAD_NOT_PROVIDED.md"));
+    const status = evidence.find((entry) => entry.relativePath.endsWith("product_cad_status.json"));
+    expect(new TextDecoder().decode(note?.data)).toContain("NO_PRODUCT_CAD_PROVIDED");
+    expect(JSON.parse(new TextDecoder().decode(status?.data))).toMatchObject({
+      status: "NO_PRODUCT_CAD_PROVIDED",
+      customerProductCadProvided: false,
+      sourceCadCount: 0,
+      generatedProductCad: false,
+    });
   });
 
   it("keeps exact view, visual and open-item counts", () => {

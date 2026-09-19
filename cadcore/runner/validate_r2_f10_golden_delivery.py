@@ -197,7 +197,31 @@ class ContractValidator:
             self.check(PurePosixPath(docx).stem == PurePosixPath(pdf).stem, "DOCX 与 PDF 必须使用相同正式方案文件名")
 
         product = self.paths_under("02_产品CAD与视图")
-        self.check(Counter(PurePosixPath(path).suffix.lower() for path in product) == Counter({".brep": 1, ".step": 1, ".stl": 1, ".png": 5}), "02_产品CAD与视图 必须恰有 BREP/STEP/STL 各 1 与 PNG 标准视图 5")
+        product_paths = set(product)
+        real_product_layout = Counter(PurePosixPath(path).suffix.lower() for path in product) == Counter({".brep": 1, ".step": 1, ".stl": 1, ".png": 5})
+        no_product_paths = {
+            "02_产品CAD与视图/PRODUCT_CAD_NOT_PROVIDED.md",
+            "02_产品CAD与视图/product_cad_status.json",
+            "02_产品CAD与视图/bottom_NO_PRODUCT_CAD.svg",
+            "02_产品CAD与视图/front_NO_PRODUCT_CAD.svg",
+            "02_产品CAD与视图/isometric_NO_PRODUCT_CAD.svg",
+            "02_产品CAD与视图/right_NO_PRODUCT_CAD.svg",
+            "02_产品CAD与视图/top_NO_PRODUCT_CAD.svg",
+            "02_产品CAD与视图/scope_boundary_NO_PRODUCT_CAD.svg",
+        }
+        no_product_layout = product_paths == no_product_paths
+        self.check(real_product_layout or no_product_layout, "02_产品CAD与视图 必须为真实产品 CAD 模式（BREP/STEP/STL + 5 PNG）或显式 NO_PRODUCT_CAD_PROVIDED 证据模式")
+        if no_product_layout:
+            note = self.read("02_产品CAD与视图/PRODUCT_CAD_NOT_PROVIDED.md")
+            self.check(b"NO_PRODUCT_CAD_PROVIDED" in note, "无产品 CAD 模式缺少 NO_PRODUCT_CAD_PROVIDED 声明")
+            try:
+                status = json.loads(self.read("02_产品CAD与视图/product_cad_status.json").decode("utf-8"))
+                self.check(status.get("status") == "NO_PRODUCT_CAD_PROVIDED", "product_cad_status.json status 必须为 NO_PRODUCT_CAD_PROVIDED")
+                self.check(status.get("customerProductCadProvided") is False, "product_cad_status.json 必须明确 customerProductCadProvided=false")
+                self.check(status.get("sourceCadCount") == 0, "product_cad_status.json 必须明确 sourceCadCount=0")
+                self.check(status.get("generatedProductCad") is False, "product_cad_status.json 不得声称已生成产品 CAD")
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                self.fail(f"product_cad_status.json 无法读取：{exc}")
 
         mechanical = self.paths_under("03_整机概念CAD与视图")
         self.check(Counter(PurePosixPath(path).suffix.lower() for path in mechanical) == Counter({".svg": 1, ".brep": 1, ".step": 1, ".stl": 1, ".png": 5}), "03_整机概念CAD与视图 必须恰有 SVG、BREP、STEP、STL 各 1 与 PNG 标准视图 5")
@@ -278,6 +302,13 @@ class ContractValidator:
         payload = sorted(path for path in self.relative_files if not path.startswith("05_交付清单/"))
         self.check(len(listed) == len(set(listed)), "Manifest Relative Path 不得重复")
         self.check(sorted(listed) == payload, "Manifest 必须逐项覆盖且只覆盖 119 个客户载荷文件")
+
+        if "02_产品CAD与视图/PRODUCT_CAD_NOT_PROVIDED.md" in self.file_by_relative:
+            for row in rows:
+                relative = str(row.get("Relative Path", "")).replace("\\", "/").strip("/")
+                if relative.startswith("02_产品CAD与视图/"):
+                    self.check(str(row.get("Status", "")).strip() == "NO_PRODUCT_CAD", f"无产品 CAD 证据必须标记 Status=NO_PRODUCT_CAD：{relative}")
+                    self.check(str(row.get("Validation Result", "")).strip() == "SOURCE_CAD_NOT_PROVIDED", f"无产品 CAD 证据必须标记 Validation Result=SOURCE_CAD_NOT_PROVIDED：{relative}")
 
         csv_raw = self.read("05_交付清单/交付清单.csv")
         if csv_raw:
