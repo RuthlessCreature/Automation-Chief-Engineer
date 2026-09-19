@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>总工云台 · Workflow Operations</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    .ops-shell{max-width:1280px;margin:0 auto;padding:28px}.ops-head,.ops-grid{display:grid;gap:16px}.ops-grid{grid-template-columns:repeat(3,minmax(0,1fr));margin:20px 0}.ops-card,.incident{border:1px solid var(--line,#d9e0e8);border-radius:12px;padding:16px;background:var(--panel,#fff)}.metric{font-size:28px;font-weight:700}.incident{margin:12px 0}.incident-head{display:flex;justify-content:space-between;gap:12px}.incident code{font-size:12px}.incident-actions{display:flex;gap:8px;margin-top:12px}.error{color:#a52828}@media(max-width:800px){.ops-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <main class="ops-shell">
+    <div class="ops-head"><div><div class="eyebrow">WORKFLOW OPERATIONS</div><h1>失败任务与人工介入台账</h1><p>只展示受控 incident、重试和任务状态；不展示模型密钥、用户文件或原始 Prompt。</p></div><div><a class="button ghost" href="/">← 返回任务中心</a></div></div>
+    <div id="ops-error" class="form-error"></div>
+    <section id="ops-metrics" class="ops-grid"></section>
+    <div class="task-actions"><button class="button ghost" data-filter="OPEN">OPEN</button><button class="button ghost" data-filter="ACKNOWLEDGED">ACKNOWLEDGED</button><button class="button ghost" data-filter="RESOLVED">RESOLVED</button><button class="button ghost" data-filter="ALL">ALL</button><button id="refresh" class="button primary">刷新</button></div>
+    <section id="incident-list"></section>
+  </main>
+  <script type="module" src="/ops.js"></script>
+</body>
+</html>

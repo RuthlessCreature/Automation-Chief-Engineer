@@ -22,7 +22,7 @@ async function refreshDeliveryPanel() {
       return;
     }
     const delivery = data.delivery;
-    body.innerHTML = `<div class="artifact-card"><b>客户交付 ZIP 已冻结</b><small>${delivery.artifact_count} 个受控产出 · ${escapeDelivery(delivery.frozen_at)}<br>SHA-256：${escapeDelivery(delivery.sha256)}</small><div class="preview-actions"><a class="button ghost" target="_blank" rel="noopener" href="/api/tasks/${encodeURIComponent(taskId)}/delivery/preview?file=%E6%96%B9%E6%A1%88%E6%80%BB%E5%86%8C.docx">在线预览方案总册</a><a class="button ghost" target="_blank" rel="noopener" href="/api/tasks/${encodeURIComponent(taskId)}/delivery/preview?file=%E5%8F%97%E6%8E%A7%E4%BA%A7%E5%87%BA%E6%B8%85%E5%8D%95.xlsx">在线预览产出清单</a><a class="button primary" href="${escapeDelivery(delivery.download_path)}">下载客户 ZIP</a></div></div>`;
+    body.innerHTML = `<div class="artifact-card"><b>客户交付 ZIP 已冻结</b><small>${delivery.artifact_count} 个受控产出 · ${escapeDelivery(delivery.frozen_at)}<br>SHA-256：${escapeDelivery(delivery.sha256)}</small><div class="preview-actions"><a class="button ghost" target="_blank" rel="noopener" href="/api/tasks/${encodeURIComponent(taskId)}/delivery/preview?asset=technical-solution">在线预览技术方案</a><a class="button ghost" target="_blank" rel="noopener" href="/api/tasks/${encodeURIComponent(taskId)}/delivery/preview?asset=engineering-data">在线预览工程数据</a><a class="button primary" href="${escapeDelivery(delivery.download_path)}">下载客户 ZIP</a></div></div>`;
   } catch {
     // The main app owns authentication/error rendering; the delivery panel is best-effort.
   } finally {

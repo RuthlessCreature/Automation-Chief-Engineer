@@ -113,7 +113,7 @@ function renderFastTask(task, inputs) {
   badge.className = `state ${task.state}`;
   document.querySelector('#start-task').hidden = task.state !== 'DRAFT';
   const reworkButton = document.querySelector('#rework-task');
-  if (reworkButton) reworkButton.hidden = !['QUALITY_BLOCKED', 'PACKAGED'].includes(task.state);
+  if (reworkButton) reworkButton.hidden = !['QUALITY_BLOCKED', 'FAILED', 'PACKAGED'].includes(task.state);
   const startButton = document.querySelector('#start-task');
   if (startButton) startButton.onclick = startTaskFast;
   if (reworkButton) reworkButton.onclick = reworkTaskFast;

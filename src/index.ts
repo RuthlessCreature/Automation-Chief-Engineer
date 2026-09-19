@@ -77,6 +77,10 @@ async function requireUser(request: Request, env: Env): Promise<UserRow> {
   return user;
 }
 
+function requireOpsRole(user: UserRow): void {
+  if (!["reviewer", "admin", "system"].includes(user.role)) throw new HttpError(403, "该账号无权访问运维事件台账。");
+}
+
 async function requireTaskOwner(env: Env, userId: string, taskId: string): Promise<TaskRow> {
   const task = await env.DB.prepare("SELECT * FROM tasks WHERE id = ? AND owner_id = ? AND deleted_at IS NULL")
     .bind(taskId, userId)
@@ -193,6 +197,65 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
 
   const user = await requireUser(request, env);
 
+  if (method === "GET" && url.pathname === "/api/ops/health") {
+    requireOpsRole(user);
+    const taskStates = await env.DB.prepare(
+      "SELECT state, COUNT(*) AS count FROM tasks WHERE deleted_at IS NULL GROUP BY state",
+    ).all<{ state: string; count: number }>();
+    const incidentStates = await env.DB.prepare(
+      "SELECT status, severity, COUNT(*) AS count FROM workflow_incidents GROUP BY status, severity",
+    ).all<{ status: string; severity: string; count: number }>();
+    const retryStats = await env.DB.prepare(
+      "SELECT status, COUNT(*) AS count FROM workflow_retry_attempts GROUP BY status",
+    ).all<{ status: string; count: number }>();
+    return json({
+      generatedAt: isoNow(),
+      tasks: taskStates.results,
+      incidents: incidentStates.results,
+      retries: retryStats.results,
+    });
+  }
+
+  if (method === "GET" && url.pathname === "/api/ops/incidents") {
+    requireOpsRole(user);
+    const requestedStatus = (url.searchParams.get("status") ?? "OPEN").toUpperCase();
+    if (!["OPEN", "ACKNOWLEDGED", "RESOLVED", "ALL"].includes(requestedStatus)) throw new HttpError(400, "status 必须为 OPEN、ACKNOWLEDGED、RESOLVED 或 ALL。");
+    const limit = Math.max(1, Math.min(200, Number.parseInt(url.searchParams.get("limit") ?? "100", 10) || 100));
+    const query = requestedStatus === "ALL"
+      ? "SELECT i.*, t.title AS task_title, t.state AS task_state FROM workflow_incidents i JOIN tasks t ON t.id = i.task_id ORDER BY i.created_at DESC LIMIT ?"
+      : "SELECT i.*, t.title AS task_title, t.state AS task_state FROM workflow_incidents i JOIN tasks t ON t.id = i.task_id WHERE i.status = ? ORDER BY i.created_at DESC LIMIT ?";
+    const incidents = requestedStatus === "ALL"
+      ? await env.DB.prepare(query).bind(limit).all()
+      : await env.DB.prepare(query).bind(requestedStatus, limit).all();
+    return json({ incidents: incidents.results, status: requestedStatus, limit });
+  }
+
+  if (method === "POST" && parts.length === 5 && parts[0] === "api" && parts[1] === "ops" && parts[2] === "incidents" && parts[4] === "acknowledge") {
+    requireOpsRole(user);
+    const incidentId = parts[3]!;
+    const now = isoNow();
+    const result = await env.DB.prepare(
+      "UPDATE workflow_incidents SET status = 'ACKNOWLEDGED', acknowledged_at = ?, acknowledged_by = ?, updated_at = ? WHERE id = ? AND status = 'OPEN'",
+    ).bind(now, user.id, now, incidentId).run();
+    if (!result.meta.changes) throw new HttpError(404, "开放运维事件不存在或已被处理。");
+    await audit(env, "WORKFLOW_INCIDENT_ACKNOWLEDGED", user.id, null, { incidentId });
+    return json({ incidentId, status: "ACKNOWLEDGED", acknowledgedAt: now });
+  }
+
+  if (method === "POST" && parts.length === 5 && parts[0] === "api" && parts[1] === "ops" && parts[2] === "incidents" && parts[4] === "resolve") {
+    requireOpsRole(user);
+    const incidentId = parts[3]!;
+    const body = await readBody(request);
+    const note = textField(body, "note", 3, 500);
+    const now = isoNow();
+    const result = await env.DB.prepare(
+      "UPDATE workflow_incidents SET status = 'RESOLVED', resolved_at = ?, updated_at = ?, resolution_note = ? WHERE id = ? AND status IN ('OPEN', 'ACKNOWLEDGED')",
+    ).bind(now, now, note, incidentId).run();
+    if (!result.meta.changes) throw new HttpError(404, "运维事件不存在或已经关闭。");
+    await audit(env, "WORKFLOW_INCIDENT_RESOLVED", user.id, null, { incidentId, noteLength: note.length });
+    return json({ incidentId, status: "RESOLVED", resolvedAt: now });
+  }
+
   if (method === "GET" && url.pathname === "/api/tasks") {
     const tasks = await env.DB.prepare("SELECT * FROM tasks WHERE owner_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 100")
       .bind(user.id)
@@ -293,9 +356,9 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
 
   if (taskId && parts.length === 4 && parts[0] === "api" && parts[1] === "tasks" && parts[3] === "cad-inspections" && method === "GET") {
     await requireTaskOwner(env, user.id, taskId);
-    const jobs = await env.DB.prepare("SELECT id, task_id, input_id, kind, status, report_storage_key, normalized_brep_key, error_code, created_at, started_at, completed_at FROM cad_jobs WHERE task_id = ? ORDER BY created_at DESC")
-      .bind(taskId)
-      .all<CadJobRow>();
+    const jobs = await env.DB.prepare(
+      "SELECT j.id, j.task_id, j.input_id, j.kind, j.status, j.report_storage_key, j.normalized_brep_key, j.error_code, j.created_at, j.started_at, j.completed_at, i.original_name, a.id AS report_artifact_id FROM cad_jobs j JOIN task_inputs i ON i.id = j.input_id LEFT JOIN artifacts a ON a.task_id = j.task_id AND a.storage_key = j.report_storage_key AND a.status = 'ACCEPTED' WHERE j.task_id = ? ORDER BY j.created_at DESC",
+    ).bind(taskId).all<CadJobRow & { original_name: string; report_artifact_id: string | null }>();
     return json({ jobs: jobs.results });
   }
 
@@ -367,10 +430,14 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
 
   if (taskId && parts.length === 5 && parts[0] === "api" && parts[1] === "tasks" && parts[3] === "delivery" && parts[4] === "preview" && method === "GET") {
     await requireTaskOwner(env, user.id, taskId);
-    const requestedFile = url.searchParams.get("file");
-    const previewName = requestedFile === "方案总册.docx" ? "方案总册.html" : requestedFile === "受控产出清单.xlsx" ? "受控产出清单.html" : null;
-    if (!previewName) throw new HttpError(400, "只允许预览已冻结交付包中的受控 Office 派生副本。");
-    const sourceFile = requestedFile as "方案总册.docx" | "受控产出清单.xlsx";
+    const requestedAsset = url.searchParams.get("asset") ?? url.searchParams.get("file");
+    const previewSpec = requestedAsset === "technical-solution" || requestedAsset === "方案总册.docx"
+      ? { previewName: "golden-technical-solution.html", sourceFile: "GOLDEN-121 技术方案书.docx", kind: "docx" as const }
+      : requestedAsset === "engineering-data" || requestedAsset === "受控产出清单.xlsx"
+        ? { previewName: "golden-engineering-data.html", sourceFile: "GOLDEN-121 工程数据包.xlsx", kind: "xlsx" as const }
+        : null;
+    if (!previewSpec) throw new HttpError(400, "只允许预览已冻结 Golden-121 交付包中的受控 Office 派生副本。");
+    const { previewName, sourceFile } = previewSpec;
     const delivery = await env.DB.prepare("SELECT status, manifest_key, zip_key FROM delivery_packages WHERE task_id = ?")
       .bind(taskId).first<Pick<DeliveryRow, "status" | "manifest_key" | "zip_key">>();
     if (!delivery || delivery.status !== "FROZEN" || !delivery.zip_key) throw new HttpError(404, "客户 ZIP 尚未冻结。");
@@ -391,7 +458,7 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
         reports.push({ stageId: artifact.stage_id, title: artifact.title, body: await source.text() });
         rows.push({ stageId: artifact.stage_id, title: artifact.title, sha256: artifact.sha256, provider: provenance.provider ?? "unknown", model: provenance.model ?? "unknown" });
       }
-      const bytes = sourceFile === "方案总册.docx" ? buildSafeHtmlPreview(task?.title ?? "受控方案总册", reports) : buildSafeXlsxHtmlPreview(rows);
+      const bytes = previewSpec.kind === "docx" ? buildSafeHtmlPreview(task?.title ?? "受控技术方案", reports) : buildSafeXlsxHtmlPreview(rows);
       await env.ARTIFACTS.put(previewKey, bytes, { httpMetadata: { contentType: "text/html; charset=utf-8" }, customMetadata: { taskId, sourceFile, security: "safe-derived-no-script" } });
       preview = await env.ARTIFACTS.get(previewKey);
     }
@@ -476,6 +543,9 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
     await coordinator.publish({ type: "TASK_STATE", message: "任务已进入完整受控重建；历史候选已标记为拒绝，全部阶段按当前质量策略重新审查。", payload: { state: "QUEUED", rework: true, fullRebuild: true, creditsCharged: false }, createdAt: updatedAt });
     try {
       const workflow = await env.TASK_WORKFLOW.create({ id: instanceId, params: { taskId: task.id, ownerId: user.id, prompt: task.prompt } });
+      await env.DB.prepare("UPDATE workflow_incidents SET status = 'ACKNOWLEDGED', acknowledged_at = ?, acknowledged_by = ?, updated_at = ?, resolution_note = ? WHERE task_id = ? AND status = 'OPEN'")
+        .bind(updatedAt, user.id, updatedAt, "任务所有者已启动受控返工。", task.id)
+        .run();
       await audit(env, "TASK_REWORK_STARTED", user.id, task.id, { creditsCharged: false, workflowId: workflow.id });
       return json({ accepted: true, rework: true, workflowId: workflow.id }, 202);
     } catch (error) {
