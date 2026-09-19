@@ -45,4 +45,4 @@ jobs:
         run: npx playwright install chromium --with-deps
 
       - name: Run production UI full-flow acceptance
-        run: npx playwright test test/production-fullflow-ui.spec.ts --project=chromium --workers=1 --reporter=line
+        run: npx playwright test test/production-fullflow-ui.spec.ts --workers=1 --reporter=line
