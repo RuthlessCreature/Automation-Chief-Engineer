@@ -7,6 +7,11 @@ on:
         description: 'Type DEPLOY_PRODUCTION to apply remote D1 migrations and deploy zg.gaona.world'
         required: true
         type: string
+  push:
+    branches:
+      - deploy/production-once-20260919-6
+    paths:
+      - .github/workflows/deploy-production.yml
 
 permissions:
   contents: read
@@ -17,7 +22,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: ${{ github.event.inputs.confirmation == 'DEPLOY_PRODUCTION' }}
+    if: ${{ github.event_name == 'push' || github.event.inputs.confirmation == 'DEPLOY_PRODUCTION' }}
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 30
