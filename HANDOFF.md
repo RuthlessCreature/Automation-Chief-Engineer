@@ -2,7 +2,7 @@
 
 更新时间：2026-09-19（Asia/Shanghai）  
 当前产品版本：`0.1.0`  
-当前代码提交：`f3b162a`（待合并到 `main`）
+当前代码提交：`229ca66`（已合并并推送到 `main`）
 
 ## 1. 你接手的是什么
 
@@ -13,9 +13,10 @@
 ## 2. Git 状态
 
 - GitHub：`https://github.com/RuthlessCreature/Automation-Chief-Engineer.git`
-- 当前开发分支：`codex/strict-golden-delivery-contract`
-- 当前提交：`f3b162a feat: deploy controlled delivery worker with strict golden gates`
-- 本文档完成后应将该提交合并并推送到远程 `main`。
+- 主分支：`main`
+- 当前提交：`229ca66 docs: add ChatGPT handoff and production runbook`
+- 之前的实现提交：`f3b162a feat: deploy controlled delivery worker with strict golden gates`
+- 以上提交已经合并并推送到远程 `main`。
 - `_audit_docx.py`、`_audit_task_20260919/` 等本地审计临时文件已加入 `.gitignore`，不要提交。
 
 ## 3. 线上环境
