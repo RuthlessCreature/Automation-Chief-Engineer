@@ -4,6 +4,7 @@ const stagesFast = [
 ];
 const escapeFast = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
 let switchToken = 0;
+function invalidateFastTaskRequests(){switchToken+=1;}
 
 async function jsonFast(path, options = {}) {
   const response = await fetch(path, { credentials: 'same-origin', headers: { Accept: 'application/json', ...(options.headers || {}) }, ...options });
@@ -161,6 +162,8 @@ async function switchTaskFast(id) {
     if (token === switchToken && body) body.innerHTML = `<div class="inspector-empty">${escapeFast(error.message)}</div>`;
   }
 }
+
+window.__ACE_FAST__ = { switchTask: switchTaskFast, invalidateTaskRequests: invalidateFastTaskRequests };
 
 document.addEventListener('click', (event) => {
   const target = event.target;
