@@ -1,0 +1,32 @@
+name: inspect-qa-created-task
+
+on:
+  push:
+    branches:
+      - qa/browser-fullflow-20260919
+    paths:
+      - .github/workflows/inspect-qa-created-task.yml
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Read latest QA tasks
+        shell: bash
+        run: |
+          set -euo pipefail
+          SQL="SELECT t.id,t.title,t.state,t.quality_status,t.created_at,(SELECT COUNT(*) FROM task_inputs i WHERE i.task_id=t.id) AS input_count FROM tasks t JOIN users u ON u.id=t.owner_id WHERE u.email='test@test.com' AND t.title LIKE 'QA Browser Fullflow %' ORDER BY t.created_at DESC LIMIT 5;"
+          npx wrangler d1 execute automation-chief-engineer-cloud --remote --json --command "$SQL"
