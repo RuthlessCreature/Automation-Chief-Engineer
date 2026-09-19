@@ -4,7 +4,7 @@ export type QualityDecision = { pass: true } | { pass: false; reasons: readonly 
 
 export const UNRESOLVED_PLACEHOLDER_PATTERN = /(?:TBD|TODO|N\/A|待定)/i;
 export const REASONING_LEAK_PATTERN = /<\/?think>|(?:^|\n)\s*(?:analysis|reasoning|思考过程)\s*:/i;
-export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V2-STAGE-CONTRACT";
+export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V3-GOLDEN-121";
 
 type StageContract = { id: string; required: readonly RegExp[]; labels: readonly string[] };
 
