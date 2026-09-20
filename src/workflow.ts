@@ -251,7 +251,7 @@ export class TaskWorkflow extends WorkflowEntrypoint<Env, TaskWorkflowParams> {
           await coordinator.publish({
             type: "HARNESS_ATTEMPT",
             stageId: stage.id,
-            message: `${stage.agent} Harness 第 ${attempt.attempt}/${attempt.maxAttempts} 次${attempt.phase === "GENERATING" ? "生成候选" : attempt.phase === "ACCEPTED" ? "通过独立门禁" : "未通过，准备修复"}`,
+            message: `${stage.agent} Harness 第 ${attempt.attempt}/${attempt.maxAttempts} 次${attempt.phase === "GENERATING" ? "生成候选" : attempt.phase === "PROVIDER_RETRY" ? "模型响应格式异常，技术重试（不消耗质量返修次数）" : attempt.phase === "ACCEPTED" ? "通过独立门禁" : "未通过，准备修复"}`,
             payload: { phase: attempt.phase, attempt: attempt.attempt, maxAttempts: attempt.maxAttempts, reasons: attempt.reasons?.join(" | ") ?? null },
             createdAt: isoNow(),
           });
