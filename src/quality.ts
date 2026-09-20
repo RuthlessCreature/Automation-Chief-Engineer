@@ -65,7 +65,7 @@ export function evaluateStageDeliverable(candidate: CandidateArtifact): QualityD
   const reasons: string[] = [];
   if (body.length < 420) reasons.push(`${contract.id} stage body is too short for a governed handoff`);
   if (body.includes("<think>") || body.includes("</think>") || body.includes('{"title"')) reasons.push("candidate contains transport/debug content");
-  const missing = contract.required.filter((pattern) => !pattern.test(body)).map((_, index) => contract.labels[index] ?? contract.id);
+  const missing = contract.required.flatMap((pattern, index) => pattern.test(body) ? [] : [contract.labels[index] ?? contract.id]);
   if (missing.length) reasons.push(`${contract.id} missing stage deliverable signals: ${missing.join(", ")}`);
   return reasons.length ? { pass: false, reasons } : { pass: true };
 }
