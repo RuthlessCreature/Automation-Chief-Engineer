@@ -85,7 +85,7 @@ describe("stage harness", () => {
       name: "fixture",
       async generateCandidate(input) {
         calls += 1;
-        if (calls === 1) return candidate(validBody.replace("外形包络", "几何范围"), 1);
+        if (calls === 1) return candidate(validBody.replaceAll("外形包络", "几何范围").replaceAll("包络", "几何范围"), 1);
         if (calls === 2 || calls === 3) throw new Error("MINIMAX_NON_JSON_CANDIDATE");
         expect(input.attempt).toBe(2);
         expect(input.feedback?.join(" ")).toContain("外形包络");
