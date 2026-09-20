@@ -6,7 +6,7 @@ export type Envelope={widthMm:number;depthMm:number;heightMm:number;source:strin
 const e=new TextEncoder();
 const sheets=["项目概览","Requirement_FAI_CTQ","DFMEA","方案与CT","视觉光学","BOM_成本","成本模型","IO","电气功率","软件_MES","POC","MSA_GRR","FAT","SAT","WBS_进度","风险","开放项","商业_ROI","Visual_Map","Manifest_Checks","Manifest"] as const;
 export const GOLDEN_SHEETS=sheets;
-const slides=["封面与方案基线","推荐架构","固定视觉与 Dynamic 边界","产品输入与接口冻结","整机/双巢位机械基线","Top 通道","Bottom 通道","Oblique 通道","L2/可选范围","安全、气路与电气","电柜与端接可维护性","控制状态与握手","MES/追溯架构","并行节拍与产能","单巢降级情景","成本边界","BOM 成熟度","验证覆盖链","关键风险与 POC","项目计划与工作量边界","客户输入","ROI 输入与未计算结果","下一步冻结路径","安全边界图","电气容量图","OK/NG 与追溯结果流","换型与维护窗口","MSA/GR&R 证据","FAT/SAT/Acceptance 证据","三组工程基线数字","评审决策与非承诺边界"] as const;
+const slides=["封面与方案基线","推荐架构","固定视觉与 Dynamic 边界","产品输入与接口冻结","整机/双巢位机械基线","Top 通道","Bottom 通道","Oblique 通道","L2/可选范围","安全、气路与电气","电柜与端接可维护性","控制状态与握手","MES/追溯架构","并行节拍与产能","单巢降级情景","成本边界","BOM 成熟度","验证覆盖链","关键风险与 POC","项目计划与工作量边界","客户输入","ROI 输入与未计算结果","下一步冻结路径","安全边界图","电气容量图","OK/NG 与追溯结果流","换型与维护窗口","MSA/GR&R 证据","FAT/SAT/验收证据","三组工程基线数字","评审决策与非承诺边界"] as const;
 const heads=["方案结论与事实边界","视觉工位与节拍窗口","设备总体与双巢位架构","产品定位、夹持与换型","Top 视觉通道","Bottom 视觉通道","Oblique 视觉通道","Dynamic 条件选项","L2 参考位可选方案","电气、气路与安全","控制软件、HMI 与 MES","节拍、OEE 与产能情景","BOM、制造与成本","验证与验收计划","项目计划、风险与客户输入"] as const;
 const x=(s:string)=>s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[c]!));
 const crc=(b:Uint8Array)=>{let c=0xffffffff;for(const v of b){c^=v;for(let i=0;i<8;i++)c=(c>>>1)^(c&1?0xedb88320:0)}return(c^0xffffffff)>>>0};

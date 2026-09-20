@@ -69,6 +69,17 @@ describe("Golden-121 deterministic assets", () => {
     expect([...files.keys()].filter((name) => /^ppt\/slides\/_rels\/slide\d+\.xml\.rels$/.test(name))).toHaveLength(31);
   });
 
+  it("keeps validator-required review terms when provider reports are sparse", () => {
+    const files = entries(pptx("Sparse provider fixture", []));
+    const text = [...files.entries()]
+      .filter(([name]) => /^ppt\/slides\/slide\d+\.xml$/.test(name))
+      .map(([, data]) => new TextDecoder().decode(data))
+      .join("\n");
+    for (const term of ["推荐", "Top", "Bottom", "Oblique", "Dynamic", "L2", "电气", "控制", "追溯", "节拍", "成本", "BOM", "验证", "风险", "项目计划", "客户输入", "ROI", "验收"]) {
+      expect(text, `PPTX must contain Golden-121 term: ${term}`).toContain(term);
+    }
+  });
+
   it("builds a PDF with a nonzero xref offset", () => {
     const text = new TextDecoder().decode(pdf("Golden"));
     expect(text.startsWith("%PDF-1.4")).toBe(true);

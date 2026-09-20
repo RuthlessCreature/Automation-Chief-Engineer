@@ -2,6 +2,7 @@ import { expect, test, type Browser, type BrowserContext, type Page } from "@pla
 import { execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const BASE = process.env.ACE_PROD_URL ?? "https://zg.gaona.world";
 const DB = "automation-chief-engineer-cloud";
@@ -29,6 +30,11 @@ const EXPECTED_STAGES = [
 const EXPECTED_STAGE_IDS = [
   "intake","requirements","feasibility","vision","mechanical","electrical","software_mes","product_cad","ct_capacity","bom_cost","digital_twin","validation","project_sales","documentation","chief_review",
 ];
+// Invoke the installed Wrangler entrypoint directly. Calling npx/npx.cmd via a
+// shell makes the SQL argument split differently on Windows, while a direct
+// Node invocation preserves one exact --command value on every runner.
+const WRANGLER = join(process.cwd(), "node_modules", "wrangler", "bin", "wrangler.js");
+const PYTHON = process.env.ACE_PYTHON ?? (process.platform === "win32" ? "python" : "python3");
 
 type CaseResult = {
   id: string;
@@ -49,8 +55,8 @@ function sqlq(value: string) {
 
 function d1(sql: string): Array<Record<string, unknown>> {
   const raw = execFileSync(
-    "npx",
-    ["wrangler", "d1", "execute", DB, "--remote", "--json", "--command", sql],
+    process.execPath,
+    [WRANGLER, "d1", "execute", DB, "--remote", "--json", "--command", sql],
     { encoding: "utf8", env: process.env, maxBuffer: 10 * 1024 * 1024 },
   );
   const parsed = JSON.parse(raw);
@@ -275,7 +281,7 @@ test("production UI full-flow acceptance", async ({ browser }) => {
       const bytes = readFileSync(path!);
       const sha = createHash("sha256").update(bytes).digest("hex");
       expect(sha).toBe(QA_5015_SHA);
-      const output = execFileSync("python", ["scripts/validate_r2_f10_golden_delivery.py", path!], { encoding: "utf8" });
+      const output = execFileSync(PYTHON, ["scripts/validate_r2_f10_golden_delivery.py", path!], { encoding: "utf8" });
       expect(output).toContain("PASS [R2-F10-GOLDEN-121]");
       return `${suggested}; sha256=${sha}; validator=PASS`;
     });
@@ -441,7 +447,7 @@ test("production UI full-flow acceptance", async ({ browser }) => {
       expect(path).toBeTruthy();
       const bytes = readFileSync(path!);
       const sha = createHash("sha256").update(bytes).digest("hex");
-      const output = execFileSync("python", ["scripts/validate_r2_f10_golden_delivery.py", path!], { encoding: "utf8" });
+      const output = execFileSync(PYTHON, ["scripts/validate_r2_f10_golden_delivery.py", path!], { encoding: "utf8" });
       expect(output).toContain("PASS [R2-F10-GOLDEN-121]");
       return `sha256=${sha}; validator=PASS`;
     });
@@ -466,7 +472,7 @@ test("production UI full-flow acceptance", async ({ browser }) => {
         "assert st['status']=='NO_PRODUCT_CAD_PROVIDED'",
         "print('NO_PRODUCT_CAD_PASS')",
       ].join("; ");
-      const out = execFileSync("python", ["-c", script, path!], { encoding: "utf8" });
+      const out = execFileSync(PYTHON, ["-c", script, path!], { encoding: "utf8" });
       expect(out).toContain("NO_PRODUCT_CAD_PASS");
       return "NO_PRODUCT_CAD_PROVIDED evidence verified";
     });
