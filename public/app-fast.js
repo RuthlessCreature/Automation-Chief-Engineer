@@ -3,6 +3,7 @@ const stagesFast = [
   ['intake','需求接收与输入完整性','Intake Router','G00'],['requirements','需求工程','Requirement Engineer','G01'],['feasibility','可行性架构','Feasibility Architect','G03'],['vision','机器视觉','Vision Engineer','G04'],['mechanical','机械方案','Mechanical Engineer','G05'],['electrical','电控与安全','Electrical Control Engineer','G06'],['software_mes','软件与 MES','Software MES Engineer','G07'],['product_cad','产品 CAD','Product CAD Engineer','G02'],['ct_capacity','节拍与产能','CT Capacity Engineer','G08'],['bom_cost','BOM 与制造成本','BOM Cost Engineer','G09'],['digital_twin','数字孪生渲染','Digital Twin Renderer','G10'],['validation','验证与质量','Validation Engineer','G11'],['project_sales','项目与商务','Project Sales Engineer','G12'],['documentation','文档受控汇编','Documentation Engineer','G13'],['chief_review','总工审查与交付打包','Chief Reviewer','G14/G15'],
 ];
 const escapeFast = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
+const eventReasonsFast = (event) => String(event?.payload?.reasons || '').trim();
 let switchToken = 0;
 function invalidateFastTaskRequests(){switchToken+=1;}
 
@@ -76,7 +77,7 @@ function renderFastInspector() {
   for (const event of state.events) if (event.stageId && ['STAGE_STARTED', 'STAGE_GATED', 'QUALITY_BLOCKED'].includes(event.type)) latest.set(event.stageId, event);
   const stage = latest.get(state.events.at(-1)?.stageId);
   const artifacts = state.artifacts.filter((artifact) => artifact.visibility === 'INTERNAL');
-  body.innerHTML = `<div class="artifact-card"><b>${escapeFast(stage?.payload?.agent || '过程证据')}</b><small>${escapeFast(stage?.payload?.gate || 'INTERNAL')}</small><p class="artifact-text">${escapeFast(stage?.message || '任务启动后，各阶段产出和门禁证据会在此出现。')}</p><button class="button ghost" id="quality-compare">运行 Golden Comparator</button></div>${artifacts.slice(-6).map((artifact) => `<article class="artifact-card"><b>${escapeFast(artifact.title)}</b><small>${escapeFast(artifact.stage_id)} · ${escapeFast(artifact.sha256.slice(0, 16))}…</small><button class="button ghost" data-artifact="${escapeFast(artifact.id)}">查看安全预览</button></article>`).join('')}`;
+  body.innerHTML = `<div class="artifact-card"><b>${escapeFast(stage?.payload?.agent || '过程证据')}</b><small>${escapeFast(stage?.payload?.gate || 'INTERNAL')}</small><p class="artifact-text">${escapeFast(stage?.message || '任务启动后，各阶段产出和门禁证据会在此出现。')}${eventReasonsFast(stage) ? `\n原因：${escapeFast(eventReasonsFast(stage))}` : ''}</p><button class="button ghost" id="quality-compare">运行 Golden Comparator</button></div>${artifacts.slice(-6).map((artifact) => `<article class="artifact-card"><b>${escapeFast(artifact.title)}</b><small>${escapeFast(artifact.stage_id)} · ${escapeFast(artifact.sha256.slice(0, 16))}…</small><button class="button ghost" data-artifact="${escapeFast(artifact.id)}">查看安全预览</button></article>`).join('')}`;
   body.querySelector('#quality-compare')?.addEventListener('click', () => void runQualityCompare());
   body.querySelectorAll('[data-artifact]').forEach((button) => button.addEventListener('click', () => window.__ACE_APP__?.viewArtifact?.(button.dataset.artifact)));
 }
@@ -97,7 +98,7 @@ function renderFastEvents() {
   const count = document.querySelector('#event-count');
   if (!state || !list) return;
   if (count) count.textContent = state.events.length;
-  list.innerHTML = state.events.length ? state.events.slice().reverse().map((event) => `<li><strong>${escapeFast(event.message)}</strong><time>#${event.seq} · ${new Date(event.createdAt).toLocaleTimeString('zh-CN')}</time></li>`).join('') : '<li>等待任务事件</li>';
+  list.innerHTML = state.events.length ? state.events.slice().reverse().map((event) => { const reasons = eventReasonsFast(event); return `<li><strong>${escapeFast(event.message)}</strong>${reasons ? `<small>原因：${escapeFast(reasons)}</small>` : ''}<time>#${event.seq} · ${new Date(event.createdAt).toLocaleTimeString('zh-CN')}</time></li>`; }).join('') : '<li>等待任务事件</li>';
 }
 
 function renderFastTask(task, inputs) {
