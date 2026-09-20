@@ -80,6 +80,7 @@ test.describe("production command center regression", () => {
     await page.locator("#auth-form input[name=password]").fill(password!);
     await page.locator("#auth-submit").click();
     await expect(page.locator("#task-list")).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("#task-list .task-row").first()).toBeVisible({ timeout: 20_000 });
     const before = await page.locator("#task-list .task-row").count();
     await page.locator("#new-task").click();
     await expect(page.locator("#task-dialog")).toHaveJSProperty("open", true);
@@ -115,5 +116,9 @@ test.describe("production command center regression", () => {
     await rows.nth(1).click();
     await expect(page.locator("#task-title")).toHaveText(secondTitle ?? "", { timeout: 20_000 });
     await expect(page.locator(`.task-row[data-id="${secondId}"]`)).toHaveClass(/active/);
+    // The delayed response is intentional for the race regression. Drain and
+    // remove the route before the test fixture closes the page so a late
+    // callback cannot surface as a false worker-level failure.
+    await page.unrouteAll({ behavior: "ignoreErrors" });
   });
 });
