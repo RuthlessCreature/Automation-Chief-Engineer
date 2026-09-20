@@ -11,8 +11,8 @@ type StageContract = { id: string; required: readonly RegExp[]; labels: readonly
 const STAGE_CONTRACTS: Record<string, StageContract> = {
   intake: { id: "G00", required: [/输入.{0,8}(?:清单|完整|边界)|(?:完整|清单).{0,8}输入/i, /任务\s*(?:ID|标识)|输入可追溯/i, /缺失|待验证/i], labels: ["输入完整性", "任务追溯", "缺失项登记"] },
   requirements: { id: "G01", required: [/功能.{0,6}(?:需求|要求)/i, /性能.{0,6}(?:需求|要求)/i, /接口.{0,6}(?:需求|要求)/i], labels: ["功能需求", "性能需求", "接口需求"] },
-  feasibility: { id: "G03", required: [/架构/i, /相机/i, /光源/i, /PLC|控制/i], labels: ["系统架构", "视觉选型", "控制接口"] },
-  vision: { id: "G04", required: [/缺陷/i, /相机/i, /镜头/i, /光源/i, /ROI/i], labels: ["缺陷目录", "相机镜头", "光学照明", "ROI"] },
+  feasibility: { id: "G03", required: [/架构/i, /相机/i, /光源/i, /PLC|控制/i], labels: ["系统架构", "相机", "光源", "控制接口"] },
+  vision: { id: "G04", required: [/缺陷/i, /相机/i, /镜头/i, /光源/i, /ROI/i], labels: ["缺陷目录", "相机", "镜头", "光源", "ROI"] },
   mechanical: { id: "G05", required: [/布局/i, /夹具|定位/i, /机架|防护/i, /接口/i], labels: ["整机布局", "夹具定位", "防护机架", "接口"] },
   electrical: { id: "G06", required: [/PLC/i, /I\/?O/i, /急停|安全回路/i, /接地|EMC/i], labels: ["PLC", "IO", "安全回路", "EMC接地"] },
   software_mes: { id: "G07", required: [/HMI/i, /MES/i, /追溯/i, /报警/i], labels: ["HMI", "MES", "追溯", "报警"] },
