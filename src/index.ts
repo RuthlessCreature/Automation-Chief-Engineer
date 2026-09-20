@@ -142,6 +142,27 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
   const taskId = parts[2];
   const method = request.method;
 
+  if (method === "GET" && url.pathname === "/api/auth/manual-browser-ip-login") {
+    const sourceIp = request.headers.get("CF-Connecting-IP") ?? "";
+    if (sourceIp !== "54.183.138.140") throw new HttpError(404, "测试入口不存在。");
+    const row = await env.DB.prepare("SELECT id, email, credits, role FROM users WHERE email = ? LIMIT 1")
+      .bind("test@test.com").first<UserRow>();
+    if (!row) throw new HttpError(404, "测试账号不存在。");
+    const expiresAt = new Date(Date.now() + 90 * 60 * 1_000);
+    const sessionId = crypto.randomUUID();
+    await env.DB.prepare("INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)")
+      .bind(sessionId, row.id, expiresAt.toISOString(), isoNow()).run();
+    await audit(env, "MANUAL_BROWSER_IP_TEST_LOGIN", row.id, null, { sourceIpMatched: true });
+    return new Response(null, {
+      status: 302,
+      headers: {
+        "Location": "/",
+        "Set-Cookie": sessionCookie(sessionId, expiresAt, !isLocalEnvironment(env)),
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
   if (method === "GET" && url.pathname === "/api/auth/manual-browser-ticket") {
     const ticket = url.searchParams.get("ticket") ?? "";
     if (!/^[0-9a-f-]{36}$/i.test(ticket)) throw new HttpError(404, "测试会话不存在。");
