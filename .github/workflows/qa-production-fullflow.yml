@@ -1,0 +1,69 @@
+name: qa-production-fullflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type RUN_PRODUCTION_QA to allow real production task creation, start, download, rename and soft-delete checks'
+        required: true
+        type: string
+      qa_email:
+        description: 'Existing production QA account email. Password is not used by this workflow.'
+        required: true
+        default: 'test@test.com'
+        type: string
+      prod_url:
+        description: 'Production base URL'
+        required: true
+        default: 'https://zg.gaona.world'
+        type: string
+      expected_5015_sha:
+        description: 'Expected locked SHA-256 for the historical 5015 regression ZIP'
+        required: true
+        default: 'bf6fb5f34941e49998a808d5e939bea75c0c0afd5c4db14ddc13c733cf0a0035'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-production-fullflow
+  cancel-in-progress: false
+
+jobs:
+  qa:
+    if: ${{ github.event.inputs.confirmation == 'RUN_PRODUCTION_QA' }}
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 85
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      ACE_PROD_URL: ${{ github.event.inputs.prod_url }}
+      ACE_QA_EMAIL: ${{ github.event.inputs.qa_email }}
+      ACE_QA_5015_SHA: ${{ github.event.inputs.expected_5015_sha }}
+      ACE_QA_5015_TITLE: '5015 | Golden-121 PROD rerun'
+      ACE_QA_ALLOW_PROD_MUTATION: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate production credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo "::error::Missing CLOUDFLARE_API_TOKEN"; exit 1; }
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}" || { echo "::error::Missing CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Run production browser full-flow acceptance
+        run: npx playwright test test/production-fullflow-ui.spec.ts --workers=1 --reporter=line
