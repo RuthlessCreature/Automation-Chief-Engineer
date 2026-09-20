@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateCandidate } from "../src/quality";
+import { evaluateCandidate, stageContractLabels } from "../src/quality";
 import { hashPassword, verifyPassword } from "../src/security";
 
 describe("independent candidate quality gate", () => {
@@ -19,6 +19,16 @@ describe("independent candidate quality gate", () => {
       evidence: ["INPUT-task-prompt"],
     });
     expect(decision).toEqual({ pass: false, reasons: expect.arrayContaining(["at least two traceable evidence references are required", "unresolved placeholder detected"]) });
+  });
+
+  it("keeps G04 repair labels aligned with the deterministic signals", () => {
+    expect(stageContractLabels("vision")).toEqual(["缺陷目录", "相机", "镜头", "光源", "ROI"]);
+    const decision = evaluateCandidate({
+      id: "v", taskId: "task", stageId: "vision", title: "视觉方案", provider: "fixture", model: "fixture-v1",
+      body: ("缺陷目录覆盖漏贴、偏贴、皱褶与外观脏污；相机采用面阵方案，镜头依据视野和工作距离选型，ROI按工位区域分区并记录坐标。输入可追溯到任务提示，当前尺寸与速度均作为需客户确认的假设；风险包括反光、遮挡与运动模糊；下一阶段交接包括成像距离、触发接口、检测节拍和验证样本。 ").repeat(4),
+      evidence: ["INPUT-task-prompt", "RULE-G04"],
+    });
+    expect(decision).toEqual({ pass: false, reasons: ["G04 missing stage deliverable signals: 光源"] });
   });
 
   it("rejects a generic long paragraph that does not implement the stage contract", () => {
