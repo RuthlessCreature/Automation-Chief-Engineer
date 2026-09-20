@@ -52,8 +52,12 @@
 - `test/production-browser.spec.ts`：较轻量生产浏览器回归，需要真实账号密码环境变量；
 - `test/production-fullflow-ui.spec.ts`：受控生产全流程验收，使用短时 D1 session + Chromium UI，不读取账号密码；
 - `.github/workflows/qa-production-fullflow.yml`：**仅 workflow_dispatch**，必须输入 `RUN_PRODUCTION_QA`；
-- `docs/QA_TEST_MATRIX_20260920.md`：172 条详细用例，可代码搜索；
-- `docs/QA_TEST_MATRIX_20260920.xlsx`：同一矩阵的执行工作簿；
+- `docs/qa-matrix/README.md`：172 条详细用例索引与执行规则；
+- `docs/qa-matrix/part-01-auth-nav-task-input.csv`：认证/导航/任务/输入；
+- `docs/qa-matrix/part-02-pipeline-cad-preview.csv`：15阶段/CAD/Preview；
+- `docs/qa-matrix/part-03-delivery-rework-security.csv`：Delivery/返工/安全；
+- `docs/qa-matrix/part-04-ux-ops-release-history.csv`：UX/运维/发布/5015人工审查；
+- Excel 执行工作簿由本次 handoff 同时导出，仓库 CSV 为 canonical 文本镜像；
 - `docs/CODEX_QA_HANDOFF_20260920.md`：本文；
 - `docs/BRANCH_DISPOSITION_20260920.md`：历史分支处置规则。
 
