@@ -53,19 +53,59 @@ describe("stage harness", () => {
     expect((result as { reasons: string[] }).reasons.join(" ")).toContain("unresolved placeholder detected");
   });
 
-  it("keeps provider-format failures inside the stage harness", async () => {
+  it("retries provider-format failures without spending the quality repair budget", async () => {
     let calls = 0;
+    const phases: string[] = [];
     const provider: ModelProvider = {
       name: "fixture",
       async generateCandidate(input) {
         calls += 1;
         if (calls === 1) throw new Error("MINIMAX_NON_JSON_CANDIDATE");
+        expect(input.attempt).toBe(1);
         expect(input.feedback?.join(" ")).toContain("valid JSON");
         return candidate(validBody, calls);
+      },
+    };
+    const result = await runStageHarness({
+      provider,
+      taskId: "task-harness",
+      prompt: "建立产品 CAD 受控输入和 BREP 检验边界。",
+      stage,
+      onAttempt: (attempt) => { phases.push(`${attempt.attempt}:${attempt.phase}`); return Promise.resolve(); },
+    });
+    expect(result.status).toBe("ACCEPTED");
+    expect(result.attempts).toBe(1);
+    expect(calls).toBe(2);
+    expect(phases).toEqual(["1:GENERATING", "1:PROVIDER_RETRY", "1:ACCEPTED"]);
+  });
+
+  it("keeps provider-format noise separate after a real quality rejection", async () => {
+    let calls = 0;
+    const provider: ModelProvider = {
+      name: "fixture",
+      async generateCandidate(input) {
+        calls += 1;
+        if (calls === 1) return candidate(validBody.replace("外形包络", "几何范围"), 1);
+        if (calls === 2 || calls === 3) throw new Error("MINIMAX_NON_JSON_CANDIDATE");
+        expect(input.attempt).toBe(2);
+        expect(input.feedback?.join(" ")).toContain("外形包络");
+        return candidate(validBody, 4);
       },
     };
     const result = await runStageHarness({ provider, taskId: "task-harness", prompt: "建立产品 CAD 受控输入和 BREP 检验边界。", stage });
     expect(result.status).toBe("ACCEPTED");
     expect(result.attempts).toBe(2);
+    expect(calls).toBe(4);
+  });
+
+  it("raises a technical provider error instead of mislabeling malformed responses as QUALITY_BLOCKED", async () => {
+    const provider: ModelProvider = {
+      name: "fixture",
+      async generateCandidate() {
+        throw new Error("MINIMAX_NON_JSON_CANDIDATE");
+      },
+    };
+    await expect(runStageHarness({ provider, taskId: "task-harness", prompt: "建立产品 CAD 受控输入和 BREP 检验边界。", stage }))
+      .rejects.toThrow("MINIMAX_NON_JSON_CANDIDATE");
   });
 });
