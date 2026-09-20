@@ -142,6 +142,49 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
   const taskId = parts[2];
   const method = request.method;
 
+  if (method === "GET" && url.pathname === "/api/auth/qa-browser-login") {
+    const armed = await env.DB.prepare(
+      "SELECT created_at FROM audit_events WHERE action = 'QA_BROWSER_ARMED' ORDER BY created_at DESC LIMIT 1",
+    ).first<{ created_at: string }>();
+    const consumed = await env.DB.prepare(
+      "SELECT created_at FROM audit_events WHERE action = 'QA_BROWSER_CONSUMED' ORDER BY created_at DESC LIMIT 1",
+    ).first<{ created_at: string }>();
+    const armedAt = armed ? Date.parse(armed.created_at) : Number.NaN;
+    const consumedAt = consumed ? Date.parse(consumed.created_at) : Number.NaN;
+    if (!Number.isFinite(armedAt) || Date.now() - armedAt > 5 * 60 * 1_000 || (Number.isFinite(consumedAt) && consumedAt >= armedAt)) {
+      throw new HttpError(404, "QA browser window is not armed.");
+    }
+
+    const email = "qa.browser.e2e.20260920@example.com";
+    let qaUser = await env.DB.prepare("SELECT id, email, credits, role FROM users WHERE email = ?")
+      .bind(email)
+      .first<UserRow>();
+    if (!qaUser) {
+      const passwordRecord = await hashPassword(crypto.randomUUID() + crypto.randomUUID());
+      const id = crypto.randomUUID();
+      const now = isoNow();
+      await env.DB.prepare("INSERT INTO users (id, email, password_salt, password_hash, credits, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+        .bind(id, email, passwordRecord.salt, passwordRecord.hash, 250, "member", now)
+        .run();
+      qaUser = { id, email, credits: 250, role: "member" };
+    }
+
+    const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1_000);
+    const sessionId = crypto.randomUUID();
+    await env.DB.prepare("INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)")
+      .bind(sessionId, qaUser.id, expiresAt.toISOString(), isoNow())
+      .run();
+    await audit(env, "QA_BROWSER_CONSUMED", qaUser.id, null, { oneShot: true });
+    return new Response(null, {
+      status: 302,
+      headers: {
+        "Location": "/",
+        "Set-Cookie": sessionCookie(sessionId, expiresAt, !isLocalEnvironment(env)),
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
   if (method === "POST" && url.pathname === "/api/auth/register") {
     const body = await readBody(request);
     const email = textField(body, "email", 5, 254).toLowerCase();
