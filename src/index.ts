@@ -142,6 +142,25 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
   const taskId = parts[2];
   const method = request.method;
 
+  if (method === "GET" && url.pathname === "/api/auth/manual-browser-ticket") {
+    const ticket = url.searchParams.get("ticket") ?? "";
+    if (!/^[0-9a-f-]{36}$/i.test(ticket)) throw new HttpError(404, "测试会话不存在。");
+    const row = await env.DB.prepare(
+      "SELECT s.id, s.expires_at, u.email FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ? AND s.expires_at > ? AND u.email = ?",
+    ).bind(ticket, isoNow(), "test@test.com").first<{ id: string; expires_at: string; email: string }>();
+    if (!row) throw new HttpError(404, "测试会话不存在或已过期。");
+    const expiresAt = new Date(row.expires_at);
+    await audit(env, "MANUAL_BROWSER_TEST_SESSION_CONSUMED", null, null, { testAccount: true });
+    return new Response(null, {
+      status: 302,
+      headers: {
+        "Location": "/",
+        "Set-Cookie": sessionCookie(row.id, expiresAt, !isLocalEnvironment(env)),
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
   if (method === "POST" && url.pathname === "/api/auth/register") {
     const body = await readBody(request);
     const email = textField(body, "email", 5, 254).toLowerCase();
