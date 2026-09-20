@@ -135,7 +135,7 @@ test.setTimeout(75 * 60 * 1000);
 
 test("production UI full-flow acceptance", async ({ browser }) => {
   test.skip(!ALLOW_PROD_MUTATION, "set ACE_QA_ALLOW_PROD_MUTATION=1 only for an explicitly approved production QA run");
-  const account = createSession();
+  const account = await createSession();
   console.log(`QA_META|session_bootstrap=PASS|uid_present=${Boolean(account.uid)}`);
 
   let qaTaskTitle = "";
@@ -216,7 +216,7 @@ test("production UI full-flow acceptance", async ({ browser }) => {
 
     await qa("PIPE-002", "已封装任务显示15/15且进度不超过100%", "P0", async () => {
       await expect(page.locator("#stage-count")).toHaveText("15 / 15");
-      const width = await page.locator("#progress").evaluate((el) => getComputedStyle(el).width);
+      const width = await page.locator("#progress").evaluate((el: any) => String(el?.style?.width ?? ""));
       return `stage_count=15/15; progress_width=${width}`;
     });
 
@@ -398,7 +398,7 @@ test("production UI full-flow acceptance", async ({ browser }) => {
     });
 
     await qa("PIPE-005", "浏览器内事件证据显示15个唯一STAGE_GATED且顺序正确", "P0", async () => {
-      const events = await page.evaluate(() => window.__ACE_APP__?.state?.events ?? []);
+      const events = await page.evaluate(() => (globalThis as any).__ACE_APP__?.state?.events ?? []);
       const gated = events.filter((e: any) => e.type === "STAGE_GATED" && e.stageId).map((e: any) => e.stageId);
       const unique = [...new Set(gated)];
       expect(unique).toEqual(EXPECTED_STAGE_IDS);
