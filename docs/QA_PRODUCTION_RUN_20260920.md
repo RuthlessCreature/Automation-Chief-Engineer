@@ -85,6 +85,23 @@ Canonical 矩阵总数为 172 条，其中 P0 111 条、P1 43 条、P2 16 条、
 
 运行时代码修复和原失败回归已经通过；但“172 条矩阵全部执行并取得证据”仍是独立的 QA 退出条件。除已列出的生产证据外，未执行的 P0/P1 不得关闭，也不得以历史状态或页面可加载替代实际证据。下一轮应优先完成剩余 P0/P1 的受控故障注入、真实 CAD 输入和人工 Golden 样本审查，然后再给出矩阵整体放行结论。
 
+## 原失败任务返工结果
+
+为完成原用例复测，未新建替代任务，而是对首次失败的同一任务 `2e6eacf7-767a-47ae-9d19-ec3a4b466e11` 发起受控 rework。返工结果如下：
+
+| 检查项 | 结果 |
+| --- | --- |
+| rework workflow | `task-2e6eacf7-767a-47ae-9d19-ec3a4b466e11-rework-2e9a486f-3ffe-4049-9381-771e10147358` |
+| 阶段报告 | 15/15 ACCEPTED |
+| 任务状态 | `PACKAGED` |
+| quality status | `PASS` |
+| 原 G15 incident | `RESOLVED` |
+| delivery package | `FROZEN` |
+| 下载 ZIP SHA-256 | `0e0834bb49fc698883dfe6b63db520dcce8b4649e3d71b57cdabc41cc1c5164b` |
+| Golden-121 validator | `PASS` |
+
+这证明修复同时覆盖了首次失败任务和相邻的新建任务；没有通过替换任务、降低门禁或手工关闭 incident 来制造通过结果。
+
 ## Golden 样本人工审查补充
 
 对复测 ZIP 的结构和抽样资产进行了进一步检查，但不把结构检查冒充人工质量评分：
