@@ -1,0 +1,33 @@
+name: inspect-qa-fixed-production
+
+on:
+  push:
+    branches:
+      - ops/qa-fixed-progress-20260920
+    paths:
+      - .github/workflows/inspect-qa-fixed-prod.yml
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Read-only QA task progress
+        shell: bash
+        run: |
+          set -euo pipefail
+          SQL="SELECT t.id,t.state,t.quality_status,t.updated_at,(SELECT COUNT(DISTINCT stage_id) FROM artifacts a WHERE a.task_id=t.id AND a.status='ACCEPTED' AND a.kind='stage-report') AS accepted_stages,(SELECT status FROM delivery_packages d WHERE d.task_id=t.id ORDER BY d.created_at DESC LIMIT 1) AS delivery_status,(SELECT code FROM workflow_incidents i WHERE i.task_id=t.id ORDER BY i.created_at DESC LIMIT 1) AS latest_incident_code FROM tasks t JOIN users u ON u.id=t.owner_id WHERE t.title='QA-FIXED-E2E-FULLFLOW' AND u.email='qa-fixed-20260920@example.com' ORDER BY t.created_at DESC LIMIT 1;"
+          npx wrangler d1 execute automation-chief-engineer-cloud --remote --json --command "$SQL"
