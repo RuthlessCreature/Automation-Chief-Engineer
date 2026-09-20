@@ -1,0 +1,43 @@
+name: arm-qa-browser-login
+
+on:
+  push:
+    branches:
+      - ops/qa-browser-one-shot-20260920
+    paths:
+      - .github/workflows/arm-qa-browser-login.yml
+
+permissions:
+  contents: read
+
+jobs:
+  arm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Arm one-shot QA browser window
+        shell: bash
+        run: |
+          set -euo pipefail
+          NOW="$(python - <<'PY'
+          import datetime as dt
+          print(dt.datetime.now(dt.timezone.utc).isoformat().replace('+00:00','Z'))
+          PY
+          )"
+          ID="$(python - <<'PY'
+          import uuid
+          print(uuid.uuid4())
+          PY
+          )"
+          npx wrangler d1 execute automation-chief-engineer-cloud --remote --command "INSERT INTO audit_events (id, task_id, actor_id, action, detail_json, created_at) VALUES ('$ID',NULL,NULL,'QA_BROWSER_ARMED','{}','$NOW');"
+          echo "ARMED_AT=$NOW"
