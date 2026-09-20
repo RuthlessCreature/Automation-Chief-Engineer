@@ -10,15 +10,15 @@
 
 | 项目 | 证据 |
 | --- | --- |
-| Git main | `0d7ed689fd917e099cf6c6fe7b05b869f5d1016c` |
+| Git main | `fcefa1f1e1e6cc4f96c2ee1b8c7d4c123cae37a5` |
 | 运行时代码修复 | `56fa3b8cc808e36be849175ed4b6ce660996c879` |
 | Harness 修复 | `0d7ed689fd917e099cf6c6fe7b05b869f5d1016c` |
 | 生产 Worker | `automation-chief-engineer-cloud` |
-| 生产版本 | `79f217f7-5e83-4ecb-b92f-5d2fde18504d` |
+| 生产版本 | `70b0b1af-3d4c-4366-b78b-eeb2173109c7` |
 | 生产域名 | `https://zg.gaona.world` |
 | 发布方式 | `wrangler deploy --containers-rollout none` |
 | CADCore 镜像 | 沿用已发布镜像，未在本轮替换 |
-| CI | GitHub Actions run `35516952955` 与 `35517304023` 均成功 |
+| CI | GitHub Actions run `35516952955`、`35517304023` 与 `35517891314` 均成功 |
 
 ## 首次生产失败
 
@@ -35,6 +35,8 @@
 5. `wrangler deploy --dry-run --containers-rollout none`：绑定和 Worker 上传检查通过。
 6. 生产受控发布版本为 `79f217f7-5e83-4ecb-b92f-5d2fde18504d`。
 7. 原失败场景复测通过后，修复提交推送到 main。
+
+随后发现 Node Fetch 对中文 `X-Preview-Source` 自定义响应头给出兼容性警告。`fcefa1f` 将该机器可读 header 改为 ASCII 稳定标识，保留中文文件名在预览对象元数据和 UI 语义中；CI 成功后发布版本更新为 `70b0b1af-3d4c-4366-b78b-eeb2173109c7`，生产浏览器回归再次 4/4 通过。
 
 ## 原失败场景复测
 
