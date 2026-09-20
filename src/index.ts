@@ -432,9 +432,9 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
     await requireTaskOwner(env, user.id, taskId);
     const requestedAsset = url.searchParams.get("asset") ?? url.searchParams.get("file");
     const previewSpec = requestedAsset === "technical-solution" || requestedAsset === "方案总册.docx"
-      ? { previewName: "golden-technical-solution.html", sourceFile: "GOLDEN-121 技术方案书.docx", kind: "docx" as const }
+      ? { previewName: "golden-technical-solution.html", sourceFile: "GOLDEN-121 技术方案书.docx", headerSource: "GOLDEN-121-technical-solution.docx", kind: "docx" as const }
       : requestedAsset === "engineering-data" || requestedAsset === "受控产出清单.xlsx"
-        ? { previewName: "golden-engineering-data.html", sourceFile: "GOLDEN-121 工程数据包.xlsx", kind: "xlsx" as const }
+        ? { previewName: "golden-engineering-data.html", sourceFile: "GOLDEN-121 工程数据包.xlsx", headerSource: "GOLDEN-121-engineering-data.xlsx", kind: "xlsx" as const }
         : null;
     if (!previewSpec) throw new HttpError(400, "只允许预览已冻结 Golden-121 交付包中的受控 Office 派生副本。");
     const { previewName, sourceFile } = previewSpec;
@@ -463,7 +463,7 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
       preview = await env.ARTIFACTS.get(previewKey);
     }
     if (!preview) throw new HttpError(404, "安全预览副本不存在。");
-    return new Response(preview.body, { headers: { "Content-Type": "text/html; charset=utf-8", "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'self'", "X-Preview-Source": sourceFile, "Cache-Control": "private, no-store" } });
+    return new Response(preview.body, { headers: { "Content-Type": "text/html; charset=utf-8", "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'self'", "X-Preview-Source": previewSpec.headerSource, "Cache-Control": "private, no-store" } });
   }
 
   if (taskId && parts.length === 5 && parts[0] === "api" && parts[1] === "tasks" && parts[3] === "delivery" && parts[4] === "download" && method === "GET") {

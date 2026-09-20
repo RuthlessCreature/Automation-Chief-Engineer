@@ -167,7 +167,7 @@ describe("task ownership and state-machine regression", () => {
     );
     expect(wordPreview.status).toBe(200);
     expect(wordPreview.headers.get("Content-Security-Policy")).toContain("default-src 'none'");
-    expect(wordPreview.headers.get("X-Preview-Source")).toBe("GOLDEN-121 技术方案书.docx");
+    expect(wordPreview.headers.get("X-Preview-Source")).toBe("GOLDEN-121-technical-solution.docx");
     expect(await wordPreview.text()).toContain("需求工程");
 
     const xlsxPreview = await SELF.fetch(
@@ -175,7 +175,7 @@ describe("task ownership and state-machine regression", () => {
       { headers: { Cookie: owner } },
     );
     expect(xlsxPreview.status).toBe(200);
-    expect(xlsxPreview.headers.get("X-Preview-Source")).toBe("GOLDEN-121 工程数据包.xlsx");
+    expect(xlsxPreview.headers.get("X-Preview-Source")).toBe("GOLDEN-121-engineering-data.xlsx");
 
     const invalid = await SELF.fetch(
       `https://worker.test/api/tasks/${taskId}/delivery/preview?asset=../../secret`,
