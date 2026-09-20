@@ -4,6 +4,7 @@ import type { ModelProvider } from "./provider";
 import { evaluateCandidate, findUnresolvedPlaceholders, QUALITY_POLICY_VERSION } from "./quality";
 
 export const MAX_STAGE_HARNESS_ATTEMPTS = 3;
+export const MAX_PROVIDER_FORMAT_RETRIES_PER_STAGE_ATTEMPT = 3;
 
 export type StageHarnessAccepted = {
   status: "ACCEPTED";
@@ -24,7 +25,7 @@ export type StageHarnessResult = StageHarnessAccepted | StageHarnessBlocked;
 export type StageHarnessAttempt = {
   attempt: number;
   maxAttempts: number;
-  phase: "GENERATING" | "REJECTED" | "ACCEPTED";
+  phase: "GENERATING" | "PROVIDER_RETRY" | "REJECTED" | "ACCEPTED";
   reasons?: readonly string[];
 };
 
@@ -49,23 +50,49 @@ export async function runStageHarness(input: {
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     await input.onAttempt?.({ attempt, maxAttempts, phase: "GENERATING" });
-    let candidate: CandidateArtifact;
-    try {
-      candidate = await input.provider.generateCandidate({
-        taskId: input.taskId,
-        prompt: input.prompt,
-        stage: input.stage,
-        attempt,
-        feedback,
-      });
-    } catch (error) {
-      const code = error instanceof Error ? error.message : String(error);
-      if (!["MINIMAX_NON_JSON_CANDIDATE", "MINIMAX_INVALID_RESPONSE", "MINIMAX_INVALID_CANDIDATE"].includes(code)) throw error;
-      lastReasons = [code === "MINIMAX_NON_JSON_CANDIDATE" ? "candidate response was not valid JSON" : "candidate response did not satisfy the provider schema"];
-      feedback = [...lastReasons, "严格只返回单个 JSON 对象；不得输出 Markdown、思考过程或解释前后缀。"];
-      await input.onAttempt?.({ attempt, maxAttempts, phase: "REJECTED", reasons: lastReasons });
-      continue;
+    let candidate: CandidateArtifact | null = null;
+    let providerFeedback = [...feedback];
+    let lastProviderError: Error | null = null;
+
+    for (let providerTry = 1; providerTry <= MAX_PROVIDER_FORMAT_RETRIES_PER_STAGE_ATTEMPT; providerTry += 1) {
+      try {
+        candidate = await input.provider.generateCandidate({
+          taskId: input.taskId,
+          prompt: input.prompt,
+          stage: input.stage,
+          attempt,
+          feedback: providerFeedback,
+        });
+        lastProviderError = null;
+        break;
+      } catch (error) {
+        const code = error instanceof Error ? error.message : String(error);
+        if (!["MINIMAX_NON_JSON_CANDIDATE", "MINIMAX_INVALID_RESPONSE", "MINIMAX_INVALID_CANDIDATE"].includes(code)) throw error;
+        lastProviderError = error instanceof Error ? error : new Error(code);
+        const providerReason = code === "MINIMAX_NON_JSON_CANDIDATE"
+          ? "candidate response was not valid JSON"
+          : "candidate response did not satisfy the provider schema";
+        providerFeedback = [
+          ...feedback,
+          providerReason,
+          "严格只返回单个 JSON 对象；不得输出 Markdown、思考过程或解释前后缀。",
+        ];
+        await input.onAttempt?.({
+          attempt,
+          maxAttempts,
+          phase: "PROVIDER_RETRY",
+          reasons: [`${providerReason}；技术重试 ${providerTry}/${MAX_PROVIDER_FORMAT_RETRIES_PER_STAGE_ATTEMPT}`],
+        });
+      }
     }
+
+    if (!candidate) {
+      // Provider transport/schema failures are technical failures, not business
+      // quality rejections. Never spend the bounded engineering repair budget
+      // on malformed upstream envelopes.
+      throw lastProviderError ?? new Error("MINIMAX_INVALID_RESPONSE");
+    }
+
     const structural = evaluateCandidate(candidate);
     const comparison = structural.pass ? compareArtifactToGolden(candidate) : null;
     const reasons = [
