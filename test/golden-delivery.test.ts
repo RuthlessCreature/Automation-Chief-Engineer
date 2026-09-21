@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PIPELINE } from "../src/domain";
-import { GOLDEN_SHEETS, docx, geometryViews, geometryVisuals, openCsv, pdf, pptx, views, visuals, xlsx, type Report } from "../src/golden-delivery";
+import { GOLDEN_SHEETS, docx, docxForDelivery, geometryViews, geometryVisuals, openCsv, pdf, png, pptx, views, visuals, xlsx, type Report } from "../src/golden-delivery";
 import { noProductCadEvidence } from "../src/golden-package";
 
 const reports: Report[] = [{
@@ -43,11 +43,19 @@ function entries(bytes: Uint8Array): Map<string, Uint8Array> {
 
 describe("Golden-121 deterministic assets", () => {
   it("builds a 33+ heading DOCX", () => {
-    const files = entries(docx("Golden", reports));
+    const files = entries(docx("Golden", reports, [png(901), png(902), png(903), png(904), png(905)]));
     const xml = new TextDecoder().decode(files.get("word/document.xml"));
     expect((xml.match(/Heading1/g) ?? []).length).toBeGreaterThanOrEqual(33);
     expect(xml).toContain("开放项");
     expect(xml).toContain("视觉证据");
+    expect((xml.match(/<w:tbl/g) ?? []).length).toBeGreaterThanOrEqual(15);
+    expect((xml.match(/<w:drawing/g) ?? []).length).toBeGreaterThanOrEqual(5);
+  });
+
+  it("places Word image relationships beside document.xml for customer delivery", () => {
+    const files = entries(docxForDelivery("Golden", reports, [png(901)]));
+    expect(files.has("word/_rels/document.xml.rels")).toBe(true);
+    expect(new TextDecoder().decode(files.get("word/_rels/document.xml.rels"))).toContain("relationships/image");
   });
 
   it("builds the exact 21-sheet workbook with formula-bearing sheets", () => {
@@ -55,18 +63,20 @@ describe("Golden-121 deterministic assets", () => {
     const workbook = new TextDecoder().decode(files.get("xl/workbook.xml"));
     for (const sheet of GOLDEN_SHEETS) expect(workbook).toContain(sheet);
     expect([...files.keys()].filter((name) => /^xl\/worksheets\/sheet\d+\.xml$/.test(name))).toHaveLength(21);
+    expect(files.has("xl/styles.xml")).toBe(true);
     expect(new TextDecoder().decode(files.get("xl/worksheets/sheet3.xml")).match(/<f>/g)?.length ?? 0).toBeGreaterThanOrEqual(100);
     expect(new TextDecoder().decode(files.get("xl/worksheets/sheet7.xml")).match(/<f>/g)?.length ?? 0).toBeGreaterThanOrEqual(100);
   });
 
   it("builds an OpenXML-connected 31-slide PPTX", () => {
-    const files = entries(pptx("Golden", reports));
+    const files = entries(pptx("Golden", reports, [png(901), png(902), png(903), png(904), png(905)]));
     expect(files.has("ppt/presentation.xml")).toBe(true);
     expect(files.has("ppt/_rels/presentation.xml.rels")).toBe(true);
     expect(files.has("ppt/slideMasters/slideMaster1.xml")).toBe(true);
     expect(files.has("ppt/slideLayouts/slideLayout1.xml")).toBe(true);
     expect([...files.keys()].filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name))).toHaveLength(31);
     expect([...files.keys()].filter((name) => /^ppt\/slides\/_rels\/slide\d+\.xml\.rels$/.test(name))).toHaveLength(31);
+    expect([...files.keys()].filter((name) => /^ppt\/media\/image\d+\.png$/.test(name))).toHaveLength(5);
   });
 
   it("keeps validator-required review terms when provider reports are sparse", () => {
@@ -85,6 +95,7 @@ describe("Golden-121 deterministic assets", () => {
     expect(text.startsWith("%PDF-1.4")).toBe(true);
     const match = text.match(/startxref\n(\d+)\n%%EOF/);
     expect(Number(match?.[1] ?? 0)).toBeGreaterThan(0);
+    expect((text.match(/\/Type \/Page(?:\s|\/)/g) ?? []).length).toBeGreaterThanOrEqual(8);
   });
 
   it("builds an explicit no-product-CAD evidence set without fake CAD files", () => {

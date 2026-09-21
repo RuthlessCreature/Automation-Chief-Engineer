@@ -408,6 +408,57 @@ class ContractValidator:
         except (KeyError, et.ParseError, zipfile.BadZipFile) as exc:
             self.fail(f"XLSX 无法打开：{relative} ({exc})")
 
+    def validate_golden_quality(self, formal: dict[str, str]) -> None:
+        """Reject contract-shaped placeholders that carry no usable engineering content."""
+        docx = formal.get("docx", "")
+        if docx:
+            try:
+                with zipfile.ZipFile(io.BytesIO(self.read(docx))) as package:
+                    document = package.read("word/document.xml")
+                    table_count = document.count(b"<w:tbl")
+                    drawing_count = document.count(b"<w:drawing")
+                    media_count = len([name for name in package.namelist() if name.startswith("word/media/") and name.lower().endswith(".png")])
+                    self.check(table_count >= 15, f"DOCX golden quality：表格不足，至少 15 个，实际 {table_count}")
+                    self.check(drawing_count >= 5 and media_count >= 5, f"DOCX golden quality：工程图像不足，drawing={drawing_count}, media={media_count}")
+            except (KeyError, zipfile.BadZipFile) as exc:
+                self.fail(f"DOCX golden quality 无法读取：{exc}")
+
+        pptx = formal.get("pptx", "")
+        if pptx:
+            try:
+                with zipfile.ZipFile(io.BytesIO(self.read(pptx))) as package:
+                    media_count = len([name for name in package.namelist() if name.startswith("ppt/media/") and name.lower().endswith(".png")])
+                    self.check(media_count >= 5, f"PPTX golden quality：媒体图像不足，至少 5 个，实际 {media_count}")
+            except zipfile.BadZipFile as exc:
+                self.fail(f"PPTX golden quality 无法读取：{exc}")
+
+        xlsx = formal.get("xlsx", "")
+        if xlsx:
+            try:
+                with zipfile.ZipFile(io.BytesIO(self.read(xlsx))) as package:
+                    self.check("xl/styles.xml" in package.namelist(), "XLSX golden quality：缺少受控样式表 xl/styles.xml")
+                    styles = package.read("xl/styles.xml") if "xl/styles.xml" in package.namelist() else b""
+                    self.check(styles.count(b"<xf") >= 3, "XLSX golden quality：样式定义不足")
+            except zipfile.BadZipFile as exc:
+                self.fail(f"XLSX golden quality 无法读取：{exc}")
+
+        pdf = formal.get("pdf", "")
+        if pdf:
+            payload = self.read(pdf)
+            page_count = len(re.findall(rb"/Type /Page(?:\s|/)", payload))
+            self.check(page_count >= 8, f"PDF golden quality：页数不足，至少 8 页，实际 {page_count}")
+
+        for relative in self.relative_files:
+            if not relative.lower().endswith(".png"):
+                continue
+            payload = self.read(relative)
+            if len(payload) < 24 or not payload.startswith(b"\x89PNG\r\n\x1a\n"):
+                continue
+            width = int.from_bytes(payload[16:20], "big")
+            height = int.from_bytes(payload[20:24], "big")
+            if relative.startswith(("02_产品CAD与视图/", "03_整机概念CAD与视图/", "04_工程视觉/")):
+                self.check(width >= 600 and height >= 400, f"PNG golden quality：{relative} 分辨率不足（{width}x{height}，需要至少 600x400）")
+
     def run(self) -> None:
         formal = self.validate_layout()
         self.validate_open_items()
@@ -416,6 +467,7 @@ class ContractValidator:
         self.validate_docx(formal.get("docx", ""))
         self.validate_pptx(formal.get("pptx", ""))
         self.validate_xlsx(formal.get("xlsx", ""))
+        self.validate_golden_quality(formal)
 
 
 def main() -> int:

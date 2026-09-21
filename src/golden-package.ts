@@ -3,6 +3,7 @@ import { PIPELINE } from "./domain";
 import {
   GOLDEN_SCHEMA,
   docx,
+  docxForDelivery,
   envelope,
   manifestCsv,
   manifestJson,
@@ -14,6 +15,7 @@ import {
   svg,
   geometryViews,
   geometryVisuals,
+  png,
   xlsx,
   type Entry,
   type Report,
@@ -244,9 +246,9 @@ export async function freezeGoldenCustomerDelivery(env: Env, taskId: string): Pr
 
   const stem = safeName(task.title);
   payload.push(
-    { relativePath: "01_正式方案/" + stem + "技术方案书.docx", data: docx(task.title, reports), description: "正式技术方案书", ownerModule: "Documentation", status: "CONTROLLED", validationResult: "PASS" },
+    { relativePath: "01_正式方案/" + stem + "技术方案书.docx", data: docxForDelivery(task.title, reports, [png(901), png(902), png(903), png(904), png(905)]), description: "正式技术方案书", ownerModule: "Documentation", status: "CONTROLLED", validationResult: "PASS" },
     { relativePath: "01_正式方案/" + stem + "技术方案书.pdf", data: pdf(task.title), description: "正式方案 PDF", ownerModule: "Documentation", status: "CONTROLLED", validationResult: "PASS" },
-    { relativePath: "01_正式方案/" + stem + "方案汇报.pptx", data: pptx(task.title, reports), description: "31 页方案评审汇报", ownerModule: "Documentation", status: "CONTROLLED", validationResult: "PASS" },
+    { relativePath: "01_正式方案/" + stem + "方案汇报.pptx", data: pptx(task.title, reports, [png(901), png(902), png(903), png(904), png(905)]), description: "31 页方案评审汇报", ownerModule: "Documentation", status: "CONTROLLED", validationResult: "PASS" },
     { relativePath: "01_正式方案/" + stem + "工程数据包.xlsx", data: xlsx(reports), description: "21 Sheet 工程数据包", ownerModule: "Documentation", status: "CONTROLLED", validationResult: "PASS" },
   );
 
@@ -297,6 +299,14 @@ export async function freezeGoldenCustomerDelivery(env: Env, taskId: string): Pr
         }))),
   );
 
+  const officeImages = payload
+    .filter((entry) => entry.relativePath.endsWith(".png") && (entry.relativePath.startsWith("02_产品CAD与视图/") || entry.relativePath.startsWith("03_整机概念CAD与视图/")))
+    .slice(0, 5)
+    .map((entry) => entry.data);
+  const formalDocx = payload.findIndex((entry) => entry.relativePath.endsWith("技术方案书.docx"));
+  const formalPptx = payload.findIndex((entry) => entry.relativePath.endsWith("方案汇报.pptx"));
+  if (formalDocx >= 0) payload[formalDocx] = { ...payload[formalDocx]!, data: docxForDelivery(task.title, reports, officeImages) };
+  if (formalPptx >= 0) payload[formalPptx] = { ...payload[formalPptx]!, data: pptx(task.title, reports, officeImages) };
   if (payload.length !== 119) throw new Error("DELIVERY_GOLDEN_PAYLOAD_COUNT_MISMATCH:" + payload.length);
 
   const manifestRows: Array<Record<string, string | number>> = [];
