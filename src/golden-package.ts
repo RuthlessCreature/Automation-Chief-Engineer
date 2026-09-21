@@ -332,7 +332,7 @@ export async function freezeGoldenCustomerDelivery(env: Env, taskId: string): Pr
   const formalPdf = payload.findIndex((entry) => entry.relativePath.endsWith("技术方案书.pdf"));
   if (formalDocx >= 0) payload[formalDocx] = { ...payload[formalDocx]!, data: docxForDelivery(task.title, reports, officeImages) };
   if (formalPptx >= 0) payload[formalPptx] = { ...payload[formalPptx]!, data: pptx(task.title, reports, officeImages) };
-  if (formalPdf >= 0) payload[formalPdf] = { ...payload[formalPdf]!, data: pdfForDelivery(task.title, reports, officeImages.slice(0, 6)) };
+  if (formalPdf >= 0) payload[formalPdf] = { ...payload[formalPdf]!, data: pdfForDelivery(task.title, reports, officeImages.slice(0, 2)) };
   if (payload.length !== 119) throw new Error("DELIVERY_GOLDEN_PAYLOAD_COUNT_MISMATCH:" + payload.length);
 
   const manifestRows: Array<Record<string, string | number>> = [];

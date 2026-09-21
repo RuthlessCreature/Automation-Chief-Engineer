@@ -59,7 +59,11 @@ function wrap(value: string, width = 92): string[] {
 
 /** Generic, image-aware PDF delivery generator shared by every product task. */
 export function pdfForDelivery(title: string, reports: Report[] = [], images: Uint8Array[] = []): Uint8Array {
-  const parsed = images.map(parsePng).filter((value): value is PdfPng => Boolean(value)).slice(0, 6);
+  // Keep the PDF visual appendix intentionally small. The ZIP and Office
+  // files carry the full controlled evidence sequence; embedding two images
+  // here gives a useful visual PDF without duplicating the high-resolution
+  // payload enough to exceed Worker packaging memory.
+  const parsed = images.map(parsePng).filter((value): value is PdfPng => Boolean(value)).slice(0, 2);
   const pageCount = 12;
   const imageStart = 4;
   const contentStart = imageStart + parsed.length;

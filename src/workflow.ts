@@ -127,16 +127,18 @@ export class TaskWorkflow extends WorkflowEntrypoint<Env, TaskWorkflowParams> {
       }
       const retryScheduled = await this.scheduleAutomaticRetry(event.payload, code, coordinator);
       if (retryScheduled) return;
-      await openWorkflowIncident(this.env, {
-        taskId: event.payload.taskId,
-        code,
-        severity: "ERROR",
-        source: "WORKFLOW_TERMINAL_FAILURE",
-        detail: { retryExhausted: isRetryableWorkflowError(code), creditsCharged: false },
-      });
       await this.env.DB.prepare("UPDATE tasks SET state = 'FAILED', quality_status = 'BLOCKED', updated_at = ? WHERE id = ? AND state IN ('QUEUED', 'RUNNING', 'PACKAGING')")
         .bind(isoNow(), event.payload.taskId)
         .run();
+      try {
+        await openWorkflowIncident(this.env, {
+          taskId: event.payload.taskId,
+          code,
+          severity: "ERROR",
+          source: "WORKFLOW_TERMINAL_FAILURE",
+          detail: { retryExhausted: isRetryableWorkflowError(code), creditsCharged: false },
+        });
+      } catch { /* terminal task state is already persisted */ }
       if (coordinator) {
         await coordinator.publish({
           type: "TASK_STATE",
