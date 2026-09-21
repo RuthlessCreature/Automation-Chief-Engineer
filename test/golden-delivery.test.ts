@@ -60,6 +60,7 @@ describe("Golden-121 deterministic assets", () => {
     const files = entries(docx("Golden", reports, [png(901), png(902), png(903), png(904), png(905)]));
     const xml = new TextDecoder().decode(files.get("word/document.xml"));
     expect((xml.match(/Heading1/g) ?? []).length).toBeGreaterThanOrEqual(33);
+    expect((xml.match(/<w:pStyle w:val="Heading[12]"\/>/g) ?? []).length).toBeGreaterThanOrEqual(33);
     expect(xml).toContain("开放项");
     expect(xml).toContain("视觉证据");
     expect((xml.match(/<w:tbl/g) ?? []).length).toBeGreaterThanOrEqual(15);
