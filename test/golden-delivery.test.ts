@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { PIPELINE } from "../src/domain";
 import { GOLDEN_SHEETS, docx, docxForDelivery, envelope, geometryViews, geometryVisuals, openCsv, pdf, png, pptx, views, visuals, xlsx, type Report } from "../src/golden-delivery";
 import { noProductCadEvidence } from "../src/golden-package";
+import { pdfForDelivery } from "../src/pdf-delivery";
 
 const reports: Report[] = [{
   stageId: "mechanical",
@@ -151,6 +152,17 @@ describe("Golden-121 deterministic assets", () => {
     expect(evidence).toHaveLength(96);
     expect([...productViews, ...evidence].every((entry) => entry.data.slice(0, 8).every((byte, index) => byte === [137,80,78,71,13,10,26,10][index]))).toBe(true);
     expect(new TextDecoder().decode(openCsv()).trim().split(/\r?\n/)).toHaveLength(15);
+  });
+
+  it("builds a generic image-aware PDF without a product-specific branch", () => {
+    const bytes = pdfForDelivery("Generic task", reports, [png(901), png(902)]);
+    const text = new TextDecoder().decode(bytes);
+    expect(text.startsWith("%PDF-1.4")).toBe(true);
+    expect((text.match(/\/Subtype \/Image/g) ?? []).length).toBe(2);
+    expect((text.match(/\/Type \/Page(?:\s|\/)/g) ?? []).length).toBe(12);
+    expect(text).toContain("Evidence register");
+    expect(text).toContain("Open items and release boundary");
+    expect(text).toMatch(/startxref\n\d+\n%%EOF/);
   });
 
   it("bounds geometry render output to the production-safe 600x400 raster", () => {

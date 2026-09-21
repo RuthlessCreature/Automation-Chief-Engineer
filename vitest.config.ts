@@ -13,5 +13,9 @@ export default defineConfig({
   test: {
     include: ["test/**/*.test.ts"],
     setupFiles: ["./test/apply-migrations.ts"],
+    // The Cloudflare D1/Miniflare fixture is shared by the test workers.
+    // Serializing files prevents resource contention from turning an
+    // otherwise deterministic state-machine assertion into a 5s timeout.
+    fileParallelism: false,
   },
 });

@@ -8,7 +8,6 @@ import {
   manifestCsv,
   manifestJson,
   openCsv,
-  pdf,
   pptx,
   readme,
   root as goldenRoot,
@@ -20,6 +19,7 @@ import {
   type Entry,
   type Report,
 } from "./golden-delivery";
+import { pdfForDelivery } from "./pdf-delivery";
 import { QUALITY_POLICY_VERSION, sha256 } from "./quality";
 import { isoNow } from "./security";
 
@@ -247,7 +247,7 @@ export async function freezeGoldenCustomerDelivery(env: Env, taskId: string): Pr
   const stem = safeName(task.title);
   payload.push(
     { relativePath: "01_正式方案/" + stem + "技术方案书.docx", data: docxForDelivery(task.title, reports, [png(901), png(902), png(903), png(904), png(905)]), description: "正式技术方案书", ownerModule: "Documentation", status: "CONTROLLED", validationResult: "PASS" },
-    { relativePath: "01_正式方案/" + stem + "技术方案书.pdf", data: pdf(task.title), description: "正式方案 PDF", ownerModule: "Documentation", status: "CONTROLLED", validationResult: "PASS" },
+    { relativePath: "01_正式方案/" + stem + "技术方案书.pdf", data: pdfForDelivery(task.title, reports), description: "正式方案 PDF", ownerModule: "Documentation", status: "CONTROLLED", validationResult: "PASS" },
     { relativePath: "01_正式方案/" + stem + "方案汇报.pptx", data: pptx(task.title, reports, [png(901), png(902), png(903), png(904), png(905)]), description: "31 页方案评审汇报", ownerModule: "Documentation", status: "CONTROLLED", validationResult: "PASS" },
     { relativePath: "01_正式方案/" + stem + "工程数据包.xlsx", data: xlsx(reports), description: "21 Sheet 工程数据包", ownerModule: "Documentation", status: "CONTROLLED", validationResult: "PASS" },
   );
@@ -329,8 +329,10 @@ export async function freezeGoldenCustomerDelivery(env: Env, taskId: string): Pr
   const officeImages = officeImageEntries.map((entry) => entry.data);
   const formalDocx = payload.findIndex((entry) => entry.relativePath.endsWith("技术方案书.docx"));
   const formalPptx = payload.findIndex((entry) => entry.relativePath.endsWith("方案汇报.pptx"));
+  const formalPdf = payload.findIndex((entry) => entry.relativePath.endsWith("技术方案书.pdf"));
   if (formalDocx >= 0) payload[formalDocx] = { ...payload[formalDocx]!, data: docxForDelivery(task.title, reports, officeImages) };
   if (formalPptx >= 0) payload[formalPptx] = { ...payload[formalPptx]!, data: pptx(task.title, reports, officeImages) };
+  if (formalPdf >= 0) payload[formalPdf] = { ...payload[formalPdf]!, data: pdfForDelivery(task.title, reports, officeImages.slice(0, 6)) };
   if (payload.length !== 119) throw new Error("DELIVERY_GOLDEN_PAYLOAD_COUNT_MISMATCH:" + payload.length);
 
   const manifestRows: Array<Record<string, string | number>> = [];
