@@ -316,15 +316,15 @@ export async function freezeGoldenCustomerDelivery(env: Env, taskId: string): Pr
   // Office deliverables must carry a reviewable evidence sequence, not just
   // five repeated placeholders. Keep the golden machine views first, then the
   // product views and the controlled annotated/diagram/clean evidence views.
-  // Twenty-four distinct images mirrors the density of the PurgePump golden
-  // deck while keeping the Worker packaging envelope bounded.
+  // Twelve distinct images materially improves the Office evidence density
+  // while staying below the production Worker's packaging memory envelope.
   const officeImageEntries = [
     ...payload.filter((entry) => entry.relativePath.startsWith("03_整机概念CAD与视图/") && entry.relativePath.endsWith(".png")),
     ...payload.filter((entry) => entry.relativePath.startsWith("02_产品CAD与视图/") && entry.relativePath.endsWith(".png")),
     ...payload.filter((entry) => entry.relativePath.startsWith("04_工程视觉/02_annotated/") && entry.relativePath.endsWith(".png")),
     ...payload.filter((entry) => entry.relativePath.startsWith("04_工程视觉/03_diagram/") && entry.relativePath.endsWith(".png")),
     ...payload.filter((entry) => entry.relativePath.startsWith("04_工程视觉/01_clean/") && entry.relativePath.endsWith(".png")),
-  ].slice(0, 24);
+  ].slice(0, 12);
   if (officeImageEntries.length < 5) throw new Error("DELIVERY_OFFICE_EVIDENCE_IMAGES_INCOMPLETE");
   const officeImages = officeImageEntries.map((entry) => entry.data);
   const formalDocx = payload.findIndex((entry) => entry.relativePath.endsWith("技术方案书.docx"));
