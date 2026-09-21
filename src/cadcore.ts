@@ -1,5 +1,7 @@
 import { getSandbox } from "@cloudflare/sandbox";
 import { sha256 } from "./quality";
+import type { TaskCoordinator } from "./task-coordinator";
+import { isoNow } from "./security";
 
 export type CadInput = {
   id: string;
@@ -183,5 +185,19 @@ export async function validateGoldenDeliveryZip(env: Env, taskId: string, zipByt
     `python3 /opt/cadcore/validate_r2_f10_golden_delivery.py ${zipPath}`,
     { cwd: workspace },
   );
-  if (!execution.success) throw new Error("DELIVERY_GOLDEN_VALIDATOR_REWORK");
+  if (!execution.success) {
+    const diagnostics = [execution.stdout, execution.stderr, `exitCode=${execution.exitCode}`]
+      .filter(Boolean)
+      .join("\n")
+      .slice(-6_000);
+    const coordinator = env.TASK_COORDINATOR.getByName(taskId) as DurableObjectStub<TaskCoordinator>;
+    await coordinator.publish({
+      type: "QUALITY_BLOCKED",
+      stageId: "chief_review",
+      message: "Golden-121 validator diagnostics（交付已阻断）",
+      payload: { state: "QUALITY_BLOCKED", qualityStatus: "BLOCKED", errorCode: "DELIVERY_GOLDEN_VALIDATOR_REWORK", diagnostics },
+      createdAt: isoNow(),
+    });
+    throw new Error("DELIVERY_GOLDEN_VALIDATOR_REWORK");
+  }
 }
