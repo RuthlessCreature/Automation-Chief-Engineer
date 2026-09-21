@@ -313,10 +313,20 @@ export async function freezeGoldenCustomerDelivery(env: Env, taskId: string): Pr
         }))),
   );
 
-  const officeImages = payload
-    .filter((entry) => entry.relativePath.endsWith(".png") && entry.relativePath.startsWith("03_整机概念CAD与视图/"))
-    .slice(0, 5)
-    .map((entry) => entry.data);
+  // Office deliverables must carry a reviewable evidence sequence, not just
+  // five repeated placeholders. Keep the golden machine views first, then the
+  // product views and the controlled annotated/diagram/clean evidence views.
+  // Twenty-four distinct images mirrors the density of the PurgePump golden
+  // deck while keeping the Worker packaging envelope bounded.
+  const officeImageEntries = [
+    ...payload.filter((entry) => entry.relativePath.startsWith("03_整机概念CAD与视图/") && entry.relativePath.endsWith(".png")),
+    ...payload.filter((entry) => entry.relativePath.startsWith("02_产品CAD与视图/") && entry.relativePath.endsWith(".png")),
+    ...payload.filter((entry) => entry.relativePath.startsWith("04_工程视觉/02_annotated/") && entry.relativePath.endsWith(".png")),
+    ...payload.filter((entry) => entry.relativePath.startsWith("04_工程视觉/03_diagram/") && entry.relativePath.endsWith(".png")),
+    ...payload.filter((entry) => entry.relativePath.startsWith("04_工程视觉/01_clean/") && entry.relativePath.endsWith(".png")),
+  ].slice(0, 24);
+  if (officeImageEntries.length < 5) throw new Error("DELIVERY_OFFICE_EVIDENCE_IMAGES_INCOMPLETE");
+  const officeImages = officeImageEntries.map((entry) => entry.data);
   const formalDocx = payload.findIndex((entry) => entry.relativePath.endsWith("技术方案书.docx"));
   const formalPptx = payload.findIndex((entry) => entry.relativePath.endsWith("方案汇报.pptx"));
   if (formalDocx >= 0) payload[formalDocx] = { ...payload[formalDocx]!, data: docxForDelivery(task.title, reports, officeImages) };
