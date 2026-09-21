@@ -156,3 +156,23 @@
 - 该 ZIP 的 `concept.step`、`concept.brep`、`concept.stl` 和五张 PurgePump golden 机台视图与试验 7 的 hash 完全一致。
 
 当前可准确表述为：PurgePump 的 CAD/机台视图已达到 golden 资产级一致，Office 已从“5 张低密度图”提升到“12 张受控证据图”，生产打包具备回归闭环；DOCX/PPTX/PDF 的版式、页内叙事和 PDF 图文复刻仍未达到 golden sample 的完整同等水平，后续还需继续迭代，不能把当前 PASS 误报为整体完成。
+
+## 通用交付编排迭代（2026-09-22）
+
+本轮明确将 PurgePump 从“产品优化对象”降为 golden 回归样本，新增能力全部放在通用路径：
+
+- `src/pdf-delivery.ts` 新增通用 `pdfForDelivery`：固定 12 页、阶段证据章节、事实/假设/未执行边界、视觉证据索引和工程框线；不读取产品名称，也不选择产品 profile。生产路径采用 vector/text PDF，完整像素证据仍由 ZIP/DOCX/PPTX 携带，避免把高分辨率图重复复制到 Worker PDF 内存。
+- Office 图像序列继续按通用顺序组织：机台/概念视图、产品/输入视图、标注和工程图；只有标题/提示词明确命中受控 profile 时才使用专属 golden CAD。
+- `vitest.config.ts` 关闭文件级并行，避免共享 Miniflare D1 在完整套件中造成状态机测试假 timeout；没有降低任何断言或质量门。
+- 自动重试覆盖被 Workflow 包装的 `WORKFLOW_EXECUTION_ERROR`，并覆盖 `PACKAGING` 状态；retry workflow 先持久化创建，再发送通知，通知失败不能把任务留在 `SCHEDULED`；达到两次上限时先落 `FAILED` 再记录终态 incident。
+
+### 通用路径回归证据
+
+- 本地：`10 files / 46 tests PASS`；`npm run types` PASS；新增 generic PDF 结构测试验证 12 页、可选图像对象、xref 和开放项章节。
+- Worker 发布：`9a9d5edb-d375-4311-92aa-5fa41c82a20f`（vector/text PDF 生产边界）。
+- 泛化任务 `b03d4ec8-d06b-4f0b-8831-9c3d55d4b8fa`：无产品 CAD，首次在 G12/project_sales 前后遇到 `WORKFLOW_EXECUTION_ERROR`；旧重试逻辑未入 retry ledger，已作为缺陷修复输入。
+- 泛化任务 `2e205e78-c95c-47c0-a32c-ecabb02d1f49`：新 retry 分类生效，`attempt=1 STARTED`；随后在 PACKAGING 触发资源异常，暴露 PACKAGING 状态重试边界，已修复。
+- 泛化任务 `f3661991-6427-4872-973a-716039cb5708`：`attempt=1/2 STARTED` 均可追踪，终态没有再悬挂在 `SCHEDULED`；PDF 图像复制版本在生产内存边界仍失败，随后改为 vector/text PDF。
+- 泛化任务 `e5ba693d-77a1-4f33-ba8f-7aa27a979a9f` 与 `0f3eef61-6eb7-491d-9c1a-a565213d4340`：采用 vector/text PDF 后，任务分别在 G12 附近发生 MiniMax/runtime 瞬态错误并在两次 retry 后 FAILED；没有生成可下载 ZIP，因此不能把 generic PDF 写成生产 PASS。该缺口属于模型/工作流运行稳定性证据缺失，不能用 PurgePump 成功样本替代。
+
+准确结论：通用 PDF/Office 编排和通用 retry 代码已完成单元级门禁与线上失败收口验证，但“无产品 CAD 的泛化任务完整 ZIP + PDF 在线生产 PASS”仍需下一次稳定的 MiniMax 生产重跑；本轮不伪造该证据。
