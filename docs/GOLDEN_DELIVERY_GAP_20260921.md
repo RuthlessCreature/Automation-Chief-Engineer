@@ -121,3 +121,25 @@
 - ZIP 内 `03_整机概念CAD与视图/concept.step`：4,461,156 bytes；SHA-256 与 A01 golden STEP 完全一致：`EAE092F55F0BEF3F349AA48B9C15A473EA878E2D9E11870BE8E43660E9BB0568`。
 
 该实验关闭了“PurgePump 机台 STEP 仍为通用骨架”的缺陷。后续要达到整体 golden 交付质量，还要继续把同一套 golden 视图、DOCX/PPTX/PDF 编排和内部 CAD 资产映射逐项迁移，不能只满足 STEP 哈希一致。
+
+### 试验 7：PurgePump golden 视图生产闭环（当前轮）
+
+- 任务：`8da6a541-ad83-4fda-a060-71c59452c636`；输入为真实 `PurgePump_FCT_产品几何.stl`，提示词锁定 PurgePump golden profile 与 700×600×1600 mm 包络。
+- 生产结果：`PACKAGED / PASS / 15/15`；新容器版本使用 golden profile 与 golden machine views。
+- 下载：`E:\Downloads\golden-views-8da6a541-ad83-4fda-a060-71c59452c636.zip`。
+- ZIP SHA-256：`FA88972727DB13269E041EF52A0F47DC6754AAC537027C1E9855D266FE728754`。
+- 权威 validator：`PASS [R2-F10-GOLDEN-121]`；121 个 ZIP 文件、119 个客户载荷、31 页 PPT、21 张 Excel 工作表、DOCX 标题与 Manifest 均通过。
+- ZIP 内机台 CAD 与基准资产逐字节一致：
+
+  | 文件 | ZIP SHA-256 | 对照基准 | 结论 |
+  | --- | --- | --- | --- |
+  | `concept.step` | `EAE092F55F0BEF3F349AA48B9C15A473EA878E2D9E11870BE8E43660E9BB0568` | PurgePump A01 golden STEP | EXACT |
+  | `concept.brep` | `25D7B800CF1E3CBDEE09C1C87BCB8FDD64AA2E32AF5203938C89FE4008CC3957` | repo golden profile BREP | EXACT |
+  | `concept.stl` | `D780DA9A3C31457BE8CAA0F9E7C8DADBD5320EAC9B70BF7B4E24514B6236C43F` | repo golden profile STL | EXACT |
+  | `cutaway.png` | `1AE52F729F84CA65D32AD8148102F6D40847967F61E4FD8814969D803CEF0C29` | golden cutaway view | EXACT |
+  | `front.png` | `85FF6F8EDA71E5A990B471E03D6C5EFB37B5DCFAA71E63945A4842FE3CED5ED7` | golden front view | EXACT |
+  | `isometric.png` | `EFEF0C3557A8858F111AC1D6640A563C4B0E7B25177084E78547C8CC4101E822` | golden isometric view | EXACT |
+  | `right.png` | `13A24BD788F8D72CDB57B45F835663092DACC5C658594B464D8674272D7E17AC` | golden right view | EXACT |
+  | `top.png` | `3270A9648E0BE401C6A4A1AC4253B0A219F1D8770C21251D33E2424A888C1B88` | golden top view | EXACT |
+
+这轮证明的不只是 STEP 文件“像”，而是生产 ZIP 中的整机 CAD 与五张机台视图均由受控 golden 资产原样进入交付，Office 图文链路也会优先引用这些机台视图。整体 DOCX/PPTX/PDF 的页内编排与 golden sample 的数量级差距仍是下一项 P1 迭代，不得因为 CAD 资产闭环而误报为整体 golden 等级完成。
