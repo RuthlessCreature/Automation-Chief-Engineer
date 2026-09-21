@@ -142,7 +142,7 @@ def build(width: float, depth: float, height: float):
     return compound
 
 
-def copy_reference_profile(profile: str, width: float, depth: float, height: float, brep: Path, step: Path, stl: Path) -> bool:
+def copy_reference_profile(profile: str, width: float, depth: float, height: float, brep: Path, step: Path, stl: Path, view_dir: Path | None = None) -> bool:
     """Use a supplied, customer-approved reference assembly for known profiles.
 
     The profile is explicit so arbitrary jobs never silently receive a
@@ -161,6 +161,14 @@ def copy_reference_profile(profile: str, width: float, depth: float, height: flo
     for source, destination in zip(sources, (brep, step, stl)):
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, destination)
+    if view_dir is not None:
+        reference_views = root / "views"
+        view_dir.mkdir(parents=True, exist_ok=True)
+        for name in ("cutaway", "front", "isometric", "right", "top"):
+            source = reference_views / f"{name}.png"
+            if not source.is_file():
+                raise ValueError("REFERENCE_PROFILE_VIEW_ASSET_MISSING")
+            shutil.copyfile(source, view_dir / source.name)
     return True
 
 
@@ -187,12 +195,14 @@ def main() -> int:
     parser.add_argument("--depth", type=float, required=True)
     parser.add_argument("--height", type=float, required=True)
     parser.add_argument("--profile", default="parametric-fct-r01")
+    parser.add_argument("--view-dir")
     parser.add_argument("--brep", required=True)
     parser.add_argument("--step", required=True)
     parser.add_argument("--stl", required=True)
     args = parser.parse_args()
     brep, step, stl = Path(args.brep), Path(args.step), Path(args.stl)
-    if not copy_reference_profile(args.profile, args.width, args.depth, args.height, brep, step, stl):
+    view_dir = Path(args.view_dir) if args.view_dir else None
+    if not copy_reference_profile(args.profile, args.width, args.depth, args.height, brep, step, stl, view_dir):
         write_all(build(args.width, args.depth, args.height), brep, step, stl)
     return 0
 

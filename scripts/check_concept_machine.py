@@ -38,5 +38,9 @@ for filename, minimum_bytes in (("concept.brep", 600_000), ("concept.step", 4_00
     asset = reference_root / filename
     if not asset.is_file() or asset.stat().st_size < minimum_bytes:
         raise SystemExit(f"CONCEPT_REFERENCE_ASSET_MISSING_OR_SMALL: {asset}")
+for name in ("cutaway", "front", "isometric", "right", "top"):
+    view = reference_root / "views" / f"{name}.png"
+    if not view.is_file() or view.stat().st_size < 20_000:
+        raise SystemExit(f"CONCEPT_REFERENCE_VIEW_MISSING_OR_SMALL: {view}")
 
 print(f"concept builder contract PASS: {len(primitive_calls)} primitive call sites")

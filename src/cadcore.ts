@@ -94,6 +94,7 @@ export type CadDeliveryAssetKeys = {
   brepSha256: string;
   stepSha256: string;
   stlSha256: string;
+  viewKeys?: Record<string, string>;
 };
 
 async function readSandboxBinary(sandbox: ReturnType<typeof getSandbox>, path: string): Promise<ArrayBuffer> {
@@ -148,9 +149,10 @@ export async function buildConceptCadAssets(
   const brepPath = `${workspace}/concept.brep`;
   const stepPath = `${workspace}/concept.step`;
   const stlPath = `${workspace}/concept.stl`;
+  const viewDir = `${workspace}/views`;
   await sandbox.mkdir(workspace, { recursive: true });
   const execution = await sandbox.exec(
-    `python3 /opt/cadcore/build_concept.py --width ${width} --depth ${depth} --height ${height} --profile ${profile} --brep ${brepPath} --step ${stepPath} --stl ${stlPath}`,
+    `python3 /opt/cadcore/build_concept.py --width ${width} --depth ${depth} --height ${height} --profile ${profile} --brep ${brepPath} --step ${stepPath} --stl ${stlPath} --view-dir ${viewDir}`,
     { cwd: workspace },
   );
   if (!execution.success) throw new Error("DELIVERY_CONCEPT_CAD_BUILD_FAILED");
@@ -162,12 +164,22 @@ export async function buildConceptCadAssets(
   const root = `tasks/${taskId}/cad/concept/r01`;
   const brepKey = `${root}/concept.brep`, stepKey = `${root}/concept.step`, stlKey = `${root}/concept.stl`;
   const [brepSha256, stepSha256, stlSha256] = await Promise.all([sha256(brep), sha256(step), sha256(stl)]);
+  const viewKeys: Record<string, string> = {};
+  for (const name of ["cutaway", "front", "isometric", "right", "top"]) {
+    const sourcePath = `${viewDir}/${name}.png`;
+    const file = await sandbox.readFile(sourcePath, { encoding: "base64" });
+    if (!file.success || !file.content) continue;
+    const bytes = base64ToArrayBuffer(file.content);
+    const key = `${root}/views/${name}.png`;
+    await env.ARTIFACTS.put(key, bytes, { httpMetadata: { contentType: "image/png" }, customMetadata: { taskId, profile, maturity: "ASM_NOT_VERIFIED" } });
+    viewKeys[name] = key;
+  }
   await Promise.all([
     env.ARTIFACTS.put(brepKey, brep, { httpMetadata: { contentType: "application/octet-stream" }, customMetadata: { taskId, sha256: brepSha256, maturity: "ASM_NOT_VERIFIED" } }),
     env.ARTIFACTS.put(stepKey, step, { httpMetadata: { contentType: "model/step" }, customMetadata: { taskId, sha256: stepSha256, maturity: "ASM_NOT_VERIFIED" } }),
     env.ARTIFACTS.put(stlKey, stl, { httpMetadata: { contentType: "model/stl" }, customMetadata: { taskId, sha256: stlSha256, maturity: "ASM_NOT_VERIFIED" } }),
   ]);
-  return { brepKey, stepKey, stlKey, brepSha256, stepSha256, stlSha256 };
+  return { brepKey, stepKey, stlKey, brepSha256, stepSha256, stlSha256, viewKeys };
 }
 
 

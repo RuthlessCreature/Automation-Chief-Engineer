@@ -286,12 +286,23 @@ export async function freezeGoldenCustomerDelivery(env: Env, taskId: string): Pr
   const conceptBrepBytes = await getObjectBytes(env, conceptCad.brepKey, "DELIVERY_CONCEPT_BREP_MISSING");
   const conceptStepBytes = await getObjectBytes(env, conceptCad.stepKey, "DELIVERY_CONCEPT_STEP_MISSING");
   const conceptStlBytes = await getObjectBytes(env, conceptCad.stlKey, "DELIVERY_CONCEPT_STL_MISSING");
+  const conceptViewNames = ["cutaway", "front", "isometric", "right", "top"] as const;
+  const conceptViewEntries: Entry[] = conceptCad.viewKeys && Object.keys(conceptCad.viewKeys).length === conceptViewNames.length
+    ? await Promise.all(conceptViewNames.map(async (name) => ({
+        relativePath: `03_整机概念CAD与视图/${name}.png`,
+        data: await getObjectBytes(env, conceptCad.viewKeys![name]!, `DELIVERY_CONCEPT_VIEW_MISSING:${name}`),
+        description: `Golden reference machine ${name} view`,
+        ownerModule: "Mechanical",
+        status: "ASM_NOT_VERIFIED",
+        validationResult: "GOLDEN_REFERENCE_VIEW",
+      })))
+    : geometryViews("03_整机概念CAD与视图", conceptStlBytes, false);
   payload.push(
     { relativePath: "03_整机概念CAD与视图/layout_and_zones.svg", data: svg(task.title, conceptEnvelope), description: "概念整机布局与分区", ownerModule: "Mechanical", status: "ASM_NOT_VERIFIED", validationResult: "PASS" },
     { relativePath: "03_整机概念CAD与视图/concept.brep", data: conceptBrepBytes, description: "受控概念整机 BREP", ownerModule: "Mechanical", status: "ASM_NOT_VERIFIED", validationResult: "PASS" },
     { relativePath: "03_整机概念CAD与视图/concept.step", data: conceptStepBytes, description: "受控概念整机 STEP", ownerModule: "Mechanical", status: "ASM_NOT_VERIFIED", validationResult: "PASS" },
     { relativePath: "03_整机概念CAD与视图/concept.stl", data: conceptStlBytes, description: "受控概念整机 STL", ownerModule: "Mechanical", status: "ASM_NOT_VERIFIED", validationResult: "PASS" },
-    ...geometryViews("03_整机概念CAD与视图", conceptStlBytes, false),
+    ...conceptViewEntries,
     ...(productStlBytes
       ? geometryVisuals(productStlBytes, conceptStlBytes)
       : geometryVisuals(conceptStlBytes, conceptStlBytes).map((entry) => ({
@@ -303,7 +314,7 @@ export async function freezeGoldenCustomerDelivery(env: Env, taskId: string): Pr
   );
 
   const officeImages = payload
-    .filter((entry) => entry.relativePath.endsWith(".png") && (entry.relativePath.startsWith("02_产品CAD与视图/") || entry.relativePath.startsWith("03_整机概念CAD与视图/")))
+    .filter((entry) => entry.relativePath.endsWith(".png") && entry.relativePath.startsWith("03_整机概念CAD与视图/"))
     .slice(0, 5)
     .map((entry) => entry.data);
   const formalDocx = payload.findIndex((entry) => entry.relativePath.endsWith("技术方案书.docx"));
