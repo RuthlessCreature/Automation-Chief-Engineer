@@ -193,14 +193,14 @@ export class TaskWorkflow extends WorkflowEntrypoint<Env, TaskWorkflowParams> {
 
   private async scheduleAutomaticRetry(payload: TaskWorkflowParams, code: string, coordinator?: DurableObjectStub<TaskCoordinator>): Promise<boolean> {
     if (!isRetryableWorkflowError(code)) return false;
-    const row = await this.env.DB.prepare("SELECT retry_count, workflow_instance_id FROM tasks WHERE id = ? AND state IN ('QUEUED', 'RUNNING')")
+    const row = await this.env.DB.prepare("SELECT retry_count, workflow_instance_id FROM tasks WHERE id = ? AND state IN ('QUEUED', 'RUNNING', 'PACKAGING')")
       .bind(payload.taskId).first<{ retry_count: number; workflow_instance_id: string | null }>();
     if (!row || row.retry_count >= 2) return false;
     const attempt = row.retry_count + 1;
     const workflowId = `task-${payload.taskId}-retry-${attempt}-${crypto.randomUUID()}`;
     const retryId = crypto.randomUUID();
     await this.env.DB.batch([
-      this.env.DB.prepare("UPDATE tasks SET state = 'QUEUED', retry_count = ?, last_error_code = ?, workflow_instance_id = ?, updated_at = ? WHERE id = ? AND state IN ('QUEUED', 'RUNNING')")
+      this.env.DB.prepare("UPDATE tasks SET state = 'QUEUED', retry_count = ?, last_error_code = ?, workflow_instance_id = ?, updated_at = ? WHERE id = ? AND state IN ('QUEUED', 'RUNNING', 'PACKAGING')")
         .bind(attempt, code, workflowId, isoNow(), payload.taskId),
       this.env.DB.prepare("INSERT INTO workflow_retry_attempts (id, task_id, attempt, previous_workflow_id, workflow_id, error_code, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'SCHEDULED', ?)")
         .bind(retryId, payload.taskId, attempt, row.workflow_instance_id, workflowId, code, isoNow()),
