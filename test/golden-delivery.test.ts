@@ -22,6 +22,20 @@ function tinyBinaryStl(): Uint8Array {
   return bytes;
 }
 
+function twoTriangleStl(): Uint8Array {
+  const bytes = new Uint8Array(84 + 2 * 50);
+  const view = new DataView(bytes.buffer);
+  view.setUint32(80, 2, true);
+  const triangles = [
+    [0, 0, 0, 100, 0, 0, 0, 100, 20],
+    [0, 0, 0, 0, 100, 0, 100, 0, 20],
+  ];
+  triangles.forEach((vertices, triangleIndex) => {
+    vertices.forEach((value, vertexIndex) => view.setFloat32(96 + triangleIndex * 50 + vertexIndex * 4, value, true));
+  });
+  return bytes;
+}
+
 function entries(bytes: Uint8Array): Map<string, Uint8Array> {
   const result = new Map<string, Uint8Array>();
   let offset = 0;
@@ -126,6 +140,13 @@ describe("Golden-121 deterministic assets", () => {
     expect(evidence).toHaveLength(96);
     expect([...productViews, ...evidence].every((entry) => entry.data.slice(0, 8).every((byte, index) => byte === [137,80,78,71,13,10,26,10][index]))).toBe(true);
     expect(new TextDecoder().decode(openCsv()).trim().split(/\r?\n/)).toHaveLength(15);
+  });
+
+  it("bounds geometry render output to the production-safe 600x400 raster", () => {
+    const data = geometryViews("02_产品CAD与视图", twoTriangleStl(), true)[0]!.data;
+    const ihdr = new DataView(data.buffer, data.byteOffset + 16, 8);
+    expect(ihdr.getUint32(0, false)).toBe(600);
+    expect(ihdr.getUint32(4, false)).toBe(400);
   });
 });
 
