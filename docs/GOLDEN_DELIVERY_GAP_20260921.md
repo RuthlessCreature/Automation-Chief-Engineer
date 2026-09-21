@@ -78,3 +78,17 @@
 | PNG 总量 | 76.37 MB（106 张） | 84.56 MB（106 张） | 视觉像素量接近，但 Office/PDF 没有复用足够的视觉证据 |
 
 因此本试验的准确结论是：生产链路和质量门禁已被真实验证，ZIP 不再是空壳；但“接近 golden sample”的交付内容目标尚未完成，尤其是 DOCX/PPTX/PDF 的图文编排仍是后续 P1 工作，不能把本次 `PASS / FROZEN` 误报为 golden 等级完成。
+
+## 机台 STEP 缺陷与本轮修复（2026-09-21）
+
+用户反馈的“机台 STEP 莫名其妙”已由实体统计确认，不是主观观感差异：
+
+| 文件 | 大小 | PRODUCT | MANIFOLD_SOLID_BREP | ADVANCED_FACE |
+| --- | ---: | ---: | ---: | ---: |
+| 试验 4 旧 `concept.step` | 131 KB | 9 | 8 | 48 |
+| PurgePump golden 整机 STEP | 4.46 MB | 186 | 175 | 1,407 |
+| 新参数化构建器本地 OCCT 试制 | 2.09 MB | 151 | 150 | 768 |
+
+旧构建器只返回四根立柱、顶框、搁板和两个盒状巢位，不能称为 FCT 机台概念。已重写 `cadcore/runner/build_concept.py`，加入 700×600×1600 参考包络、双伺服滑台、四工位 2-up 夹具/探针床、四组浮动压头、Hall/负载接口、电柜/HMI、线缆拖链和安全光幕；同时将无尺寸时的 Worker fallback 从 1800×1200×1850 修正为 golden FCT 的 700×600×1600，并增加静态架构回归门禁。
+
+新构建器已用本机 OCCT 7.9.3.1.1 实际生成 BREP/STEP/STL，文件均可写出，实体统计显著接近 golden 的部件级复杂度。由于当前 Windows Docker daemon 未运行，新的 CADCore 容器尚未滚动到生产；在容器重建并完成生产重跑前，不应声称线上 STEP 已修复。

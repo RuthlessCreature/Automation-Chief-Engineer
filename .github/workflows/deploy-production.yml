@@ -65,6 +65,9 @@ jobs:
       - name: Quality gate - CADCore Python
         run: python -m py_compile cadcore/runner/*.py
 
+      - name: Quality gate - concept machine architecture contract
+        run: python scripts/check_concept_machine.py
+
       - name: Quality gate - production dry-run
         run: npm run deploy:dry
 

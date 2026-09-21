@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PIPELINE } from "../src/domain";
-import { GOLDEN_SHEETS, docx, docxForDelivery, geometryViews, geometryVisuals, openCsv, pdf, png, pptx, views, visuals, xlsx, type Report } from "../src/golden-delivery";
+import { GOLDEN_SHEETS, docx, docxForDelivery, envelope, geometryViews, geometryVisuals, openCsv, pdf, png, pptx, views, visuals, xlsx, type Report } from "../src/golden-delivery";
 import { noProductCadEvidence } from "../src/golden-package";
 
 const reports: Report[] = [{
@@ -56,6 +56,16 @@ function entries(bytes: Uint8Array): Map<string, Uint8Array> {
 }
 
 describe("Golden-121 deterministic assets", () => {
+  it("uses the mechanical golden FCT envelope when no dimensions are supplied", () => {
+    expect(envelope("没有冻结机台尺寸")).toMatchObject({
+      widthMm: 700,
+      depthMm: 600,
+      heightMm: 1600,
+      source: "RULE-FCT-CONCEPT-ENVELOPE-DEFAULT",
+      assumed: true,
+    });
+  });
+
   it("builds a 33+ heading DOCX", () => {
     const files = entries(docx("Golden", reports, [png(901), png(902), png(903), png(904), png(905)]));
     const xml = new TextDecoder().decode(files.get("word/document.xml"));
