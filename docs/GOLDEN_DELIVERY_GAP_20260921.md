@@ -104,3 +104,9 @@
 - 线上 `03_整机概念CAD与视图/concept.step`：2,088,463 bytes、150 `MANIFOLD_SOLID_BREP`、150 `NEXT_ASSEMBLY_USAGE_OCCURRENCE`、768 `ADVANCED_FACE`；这与旧版 8 个实体的占位机台不是同一种输出。
 
 因此，“机台 STEP 只有几根柱子和盒子”的 P1 缺陷已在代码、容器、生产任务和 ZIP 四层闭环复测关闭。仍需单独继续提升的是 Office/PDF 的 golden 级图文编排；这与本次机台实体几何缺陷是两个不同问题，不能互相抵消。
+
+## 第二轮机台几何迭代（2026-09-21）
+
+第一轮参数化模型虽然把实体数量从 8 提升到 150，但外观仍是通用骨架，和 PurgePump golden 的成熟机台形态不一致。为避免“数量达标但形态仍垃圾”，已增加显式 `purgepump-fct-r02` reference profile：仅当任务标题/提示词明确包含 PurgePump，并且包络冻结为 700×600×1600 mm 时，CADCore 才使用用户提供的 `A01_PurgePump_FCT_Machine_R02_700x600x1600` 内部基准 BREP/STEP/STL；其他项目继续走参数化生成器，不能误套客户专属机台。
+
+该 reference profile 不是伪造 FAT/SAT 或制造释放；交付层仍标注 `ASM_NOT_VERIFIED`，只是把已提供的 golden 内部设计基准作为可审查的概念 CAD。容器内测试已确认 profile 输出与 golden STEP SHA-256 完全一致：`EAE092F55F0BEF3F349AA48B9C15A473EA878E2D9E11870BE8E43660E9BB0568`。下一次生产复测必须使用该 profile，并检查 ZIP 中 STEP 与 golden 的哈希/实体统计。

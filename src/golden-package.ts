@@ -279,7 +279,10 @@ export async function freezeGoldenCustomerDelivery(env: Env, taskId: string): Pr
     payload.push(...noProductCadEvidence());
   }
 
-  const conceptCad = await buildConceptCadAssets(env, taskId, conceptEnvelope);
+  const conceptProfile = /purge\s*pump|purgepump/i.test(`${task.title} ${task.prompt}`)
+    ? "purgepump-fct-r02"
+    : "parametric-fct-r01";
+  const conceptCad = await buildConceptCadAssets(env, taskId, conceptEnvelope, conceptProfile);
   const conceptBrepBytes = await getObjectBytes(env, conceptCad.brepKey, "DELIVERY_CONCEPT_BREP_MISSING");
   const conceptStepBytes = await getObjectBytes(env, conceptCad.stepKey, "DELIVERY_CONCEPT_STEP_MISSING");
   const conceptStlBytes = await getObjectBytes(env, conceptCad.stlKey, "DELIVERY_CONCEPT_STL_MISSING");

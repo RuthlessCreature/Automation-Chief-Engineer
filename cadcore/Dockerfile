@@ -11,6 +11,7 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip \
     && python3 -m pip install --no-cache-dir -r /tmp/cadcore-requirements.lock
 
 COPY runner /opt/cadcore
+COPY assets /opt/cadcore/assets
 RUN chmod 0555 /opt/cadcore/*.py && mkdir -p /workspace/cad
 
 EXPOSE 8080

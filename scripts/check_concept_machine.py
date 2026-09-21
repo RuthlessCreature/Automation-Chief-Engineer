@@ -29,8 +29,14 @@ primitive_calls = [
 if len(primitive_calls) < 40:
     raise SystemExit(f"CONCEPT_BUILDER_TOO_SPARSE: {len(primitive_calls)} primitive call sites")
 
-for marker in ("Electrical cabinet", "Two Y servo rails", "Four stations", "Front safety light curtain"):
+for marker in ("Electrical cabinet", "Two Y servo rails", "Four stations", "Front safety light curtain", "purgepump-fct-r02", "REFERENCE_PROFILE_DIMENSION_MISMATCH"):
     if marker not in text:
         raise SystemExit(f"CONCEPT_BUILDER_MISSING_ARCHITECTURE_MARKER: {marker}")
+
+reference_root = ROOT / "cadcore" / "assets" / "purgepump-fct-r02"
+for filename, minimum_bytes in (("concept.brep", 600_000), ("concept.step", 4_000_000), ("concept.stl", 300_000)):
+    asset = reference_root / filename
+    if not asset.is_file() or asset.stat().st_size < minimum_bytes:
+        raise SystemExit(f"CONCEPT_REFERENCE_ASSET_MISSING_OR_SMALL: {asset}")
 
 print(f"concept builder contract PASS: {len(primitive_calls)} primitive call sites")

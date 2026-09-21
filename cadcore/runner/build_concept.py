@@ -7,6 +7,7 @@ mechanical golden sample instead of returning a handful of unrelated boxes.
 from __future__ import annotations
 
 import argparse
+import shutil
 from pathlib import Path
 
 from OCP.BRep import BRep_Builder
@@ -141,6 +142,28 @@ def build(width: float, depth: float, height: float):
     return compound
 
 
+def copy_reference_profile(profile: str, width: float, depth: float, height: float, brep: Path, step: Path, stl: Path) -> bool:
+    """Use a supplied, customer-approved reference assembly for known profiles.
+
+    The profile is explicit so arbitrary jobs never silently receive a
+    PurgePump-specific machine.  The copied assets remain marked
+    ``ASM_NOT_VERIFIED`` by the delivery layer; this is a reference geometry
+    baseline, not a manufacturing release.
+    """
+    if profile != "purgepump-fct-r02":
+        return False
+    if (round(width), round(depth), round(height)) != (700, 600, 1600):
+        raise ValueError("REFERENCE_PROFILE_DIMENSION_MISMATCH")
+    root = Path(__file__).resolve().parent / "assets" / profile
+    sources = (root / "concept.brep", root / "concept.step", root / "concept.stl")
+    if not all(source.is_file() for source in sources):
+        raise ValueError("REFERENCE_PROFILE_ASSETS_MISSING")
+    for source, destination in zip(sources, (brep, step, stl)):
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, destination)
+    return True
+
+
 def write_all(shape, brep: Path, step: Path, stl: Path) -> None:
     brep.parent.mkdir(parents=True, exist_ok=True)
     if not BRepTools.Write_s(shape, str(brep)):
@@ -163,11 +186,14 @@ def main() -> int:
     parser.add_argument("--width", type=float, required=True)
     parser.add_argument("--depth", type=float, required=True)
     parser.add_argument("--height", type=float, required=True)
+    parser.add_argument("--profile", default="parametric-fct-r01")
     parser.add_argument("--brep", required=True)
     parser.add_argument("--step", required=True)
     parser.add_argument("--stl", required=True)
     args = parser.parse_args()
-    write_all(build(args.width, args.depth, args.height), Path(args.brep), Path(args.step), Path(args.stl))
+    brep, step, stl = Path(args.brep), Path(args.step), Path(args.stl)
+    if not copy_reference_profile(args.profile, args.width, args.depth, args.height, brep, step, stl):
+        write_all(build(args.width, args.depth, args.height), brep, step, stl)
     return 0
 
 

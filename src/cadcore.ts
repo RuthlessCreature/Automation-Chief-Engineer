@@ -139,6 +139,7 @@ export async function buildConceptCadAssets(
   env: Env,
   taskId: string,
   envelope: { widthMm: number; depthMm: number; heightMm: number },
+  profile = "parametric-fct-r01",
 ): Promise<CadDeliveryAssetKeys> {
   const clamp = (value: number) => Math.max(500, Math.min(6000, Math.round(value)));
   const width = clamp(envelope.widthMm), depth = clamp(envelope.depthMm), height = clamp(envelope.heightMm);
@@ -149,7 +150,7 @@ export async function buildConceptCadAssets(
   const stlPath = `${workspace}/concept.stl`;
   await sandbox.mkdir(workspace, { recursive: true });
   const execution = await sandbox.exec(
-    `python3 /opt/cadcore/build_concept.py --width ${width} --depth ${depth} --height ${height} --brep ${brepPath} --step ${stepPath} --stl ${stlPath}`,
+    `python3 /opt/cadcore/build_concept.py --width ${width} --depth ${depth} --height ${height} --profile ${profile} --brep ${brepPath} --step ${stepPath} --stl ${stlPath}`,
     { cwd: workspace },
   );
   if (!execution.success) throw new Error("DELIVERY_CONCEPT_CAD_BUILD_FAILED");
