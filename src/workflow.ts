@@ -205,21 +205,29 @@ export class TaskWorkflow extends WorkflowEntrypoint<Env, TaskWorkflowParams> {
       this.env.DB.prepare("INSERT INTO workflow_retry_attempts (id, task_id, attempt, previous_workflow_id, workflow_id, error_code, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'SCHEDULED', ?)")
         .bind(retryId, payload.taskId, attempt, row.workflow_instance_id, workflowId, code, isoNow()),
     ]);
-    await openWorkflowIncident(this.env, {
-      taskId: payload.taskId,
-      code,
-      severity: "WARNING",
-      source: "AUTO_RETRY",
-      detail: { retryAttempt: attempt, maxAttempts: 2, workflowId },
-    });
-    await coordinator?.publish({ type: "TASK_STATE", message: `检测到可恢复错误 ${code}；后台将自动重试第 ${attempt}/2 次。`, payload: { state: "QUEUED", retryAttempt: attempt, retryable: true, errorCode: code }, createdAt: isoNow() });
     try {
       await this.env.TASK_WORKFLOW.create({ id: workflowId, params: payload });
       await this.env.DB.prepare("UPDATE workflow_retry_attempts SET status = 'STARTED' WHERE id = ?").bind(retryId).run();
+      // Workflow creation is the durable action. Observability notifications
+      // are best-effort and must not strand a task in QUEUED/SCHEDULED.
+      try {
+        await openWorkflowIncident(this.env, {
+          taskId: payload.taskId,
+          code,
+          severity: "WARNING",
+          source: "AUTO_RETRY",
+          detail: { retryAttempt: attempt, maxAttempts: 2, workflowId },
+        });
+      } catch { /* retry is already durable */ }
+      try {
+        await coordinator?.publish({ type: "TASK_STATE", message: `检测到可恢复错误 ${code}；后台将自动重试第 ${attempt}/2 次。`, payload: { state: "QUEUED", retryAttempt: attempt, retryable: true, errorCode: code }, createdAt: isoNow() });
+      } catch { /* UI notification must not cancel the retry */ }
       return true;
     } catch (retryError) {
       await this.env.DB.prepare("UPDATE workflow_retry_attempts SET status = 'EXHAUSTED', error_code = ? WHERE id = ?")
         .bind(safeWorkflowError(retryError), retryId).run();
+      await this.env.DB.prepare("UPDATE tasks SET state = 'FAILED', quality_status = 'BLOCKED', last_error_code = ?, updated_at = ? WHERE id = ? AND state = 'QUEUED'")
+        .bind(safeWorkflowError(retryError), isoNow(), payload.taskId).run();
       return false;
     }
   }
