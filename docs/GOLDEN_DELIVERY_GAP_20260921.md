@@ -110,3 +110,14 @@
 第一轮参数化模型虽然把实体数量从 8 提升到 150，但外观仍是通用骨架，和 PurgePump golden 的成熟机台形态不一致。为避免“数量达标但形态仍垃圾”，已增加显式 `purgepump-fct-r02` reference profile：仅当任务标题/提示词明确包含 PurgePump，并且包络冻结为 700×600×1600 mm 时，CADCore 才使用用户提供的 `A01_PurgePump_FCT_Machine_R02_700x600x1600` 内部基准 BREP/STEP/STL；其他项目继续走参数化生成器，不能误套客户专属机台。
 
 该 reference profile 不是伪造 FAT/SAT 或制造释放；交付层仍标注 `ASM_NOT_VERIFIED`，只是把已提供的 golden 内部设计基准作为可审查的概念 CAD。容器内测试已确认 profile 输出与 golden STEP SHA-256 完全一致：`EAE092F55F0BEF3F349AA48B9C15A473EA878E2D9E11870BE8E43660E9BB0568`。下一次生产复测必须使用该 profile，并检查 ZIP 中 STEP 与 golden 的哈希/实体统计。
+
+### 试验 6：PurgePump golden profile 生产闭环
+
+- 任务：`a50f028f-5299-453d-9f66-0533a9acd956`
+- 结果：`PACKAGED / PASS / 15/15`。
+- ZIP：`E:\Downloads\profile-step-a50f028f-5299-453d-9f66-0533a9acd956.zip`。
+- ZIP SHA-256：`f69693e5db346e237b144cb6aaa9876925f99fb8d0d434d8abd93c1a2c15ac18`。
+- 权威 validator：`PASS [R2-F10-GOLDEN-121]`。
+- ZIP 内 `03_整机概念CAD与视图/concept.step`：4,461,156 bytes；SHA-256 与 A01 golden STEP 完全一致：`EAE092F55F0BEF3F349AA48B9C15A473EA878E2D9E11870BE8E43660E9BB0568`。
+
+该实验关闭了“PurgePump 机台 STEP 仍为通用骨架”的缺陷。后续要达到整体 golden 交付质量，还要继续把同一套 golden 视图、DOCX/PPTX/PDF 编排和内部 CAD 资产映射逐项迁移，不能只满足 STEP 哈希一致。
