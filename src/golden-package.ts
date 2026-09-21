@@ -332,7 +332,10 @@ export async function freezeGoldenCustomerDelivery(env: Env, taskId: string): Pr
   const formalPdf = payload.findIndex((entry) => entry.relativePath.endsWith("技术方案书.pdf"));
   if (formalDocx >= 0) payload[formalDocx] = { ...payload[formalDocx]!, data: docxForDelivery(task.title, reports, officeImages) };
   if (formalPptx >= 0) payload[formalPptx] = { ...payload[formalPptx]!, data: pptx(task.title, reports, officeImages) };
-  if (formalPdf >= 0) payload[formalPdf] = { ...payload[formalPdf]!, data: pdfForDelivery(task.title, reports, officeImages.slice(0, 2)) };
+  // The full visual sequence remains in the ZIP/DOCX/PPTX. Keep the PDF
+  // vector/text layer independent of high-resolution pixels so package
+  // assembly stays within the Worker memory envelope for every product.
+  if (formalPdf >= 0) payload[formalPdf] = { ...payload[formalPdf]!, data: pdfForDelivery(task.title, reports) };
   if (payload.length !== 119) throw new Error("DELIVERY_GOLDEN_PAYLOAD_COUNT_MISMATCH:" + payload.length);
 
   const manifestRows: Array<Record<string, string | number>> = [];
