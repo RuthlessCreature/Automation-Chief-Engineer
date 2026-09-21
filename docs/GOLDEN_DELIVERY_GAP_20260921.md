@@ -32,3 +32,49 @@
 ## 当前发布判断
 
 旧 ZIP 不回溯修改；它应被标记为质量阻断并重新跑 G13→G14→G15。代码本轮单元测试 `10 files / 42 tests PASS`，TypeScript 类型检查 PASS；新生产容器尚未因本报告自动发布。只有新生成的 ZIP 同时通过结构 validator 和 golden-quality gate，且人工打开 DOCX/PPTX/XLSX/PDF 与关键视图复核后，才能恢复为客户可下载的 FROZEN。
+
+## 2026-09-21 真实生产试验记录
+
+### 试验 1：打包执行失败
+
+- 任务：`3932712b-6df6-4cb7-80c0-c148a21a519f`
+- 输入：`PurgePump_FCT_产品几何.stl`，42,684 bytes，SHA-256 `07cc87d4d95aca2a5f64775efcdf3990852d157e4603e740bd89606e1d700cae`
+- G00–G15、CADCore G02 均通过；G15 后进入 `PACKAGING`。
+- 约 11 分 40 秒后返回 `WORKFLOW_EXECUTION_ERROR`，未生成 ZIP，未扣 credits。
+- 结论：96 张 800×600 未压缩几何 PNG 与整包内存峰值过高，强烈指向打包资源边界问题；随后已将输出边界收紧至 600×400，并将 STL 采样上限收紧至 800 个三角面。
+
+### 试验 2：资源问题绕过，但 Golden-121 阻断
+
+- 任务：`2d9fc504-c8a2-4a14-9dd6-fc1695fe8e70`
+- G00–G15 全部通过，打包完成后进入 `QUALITY_BLOCKED`。
+- 生产 validator 诊断补丁随后发布；第二次阻断并非被伪装成失败，而是明确的质量门禁结果。
+
+### 试验 3：validator 细项定位
+
+- 任务：`77f430e3-5789-4fab-879a-782e5d550dcf`
+- G00–G15 全部通过。
+- Golden-121 诊断：`DOCX 必须至少有 33 个标题级章节，实际 22`。
+- 已补入 11 个工程章节，并新增实际 `<w:pStyle Heading1/Heading2>` 计数回归测试；本地测试增至 `10 files / 44 tests PASS`。
+
+### 试验 4：生产冻结与下载复测
+
+- 任务：`28fdb0b2-f2ad-4841-a56b-8cb0517efea7`
+- 输入 SHA-256 与前三次一致；G00–G15、CADCore、Golden-121 validator 均通过。
+- 生产状态：`PACKAGED / PASS / FROZEN`；交付记录为 121 个文件、119 个客户载荷。
+- 下载文件：`E:\Downloads\golden-experiment-28fdb0b2-f2ad-4841-a56b-8cb0517efea7.zip`
+- ZIP bytes：`88,993,760`；SHA-256：`EC6569831B60F6FB3B8EC1A52953DCF5EF5BBB37E40C33E769019C0EE7F79E24`。
+- 本地权威 validator：`PASS [R2-F10-GOLDEN-121]`。
+
+### 试验 4 与 PurgePump golden sample 的内容差距
+
+试验 4 已达到“可冻结、可下载、权威 validator 通过”的发布门槛，但还不能声称与 golden sample 接近。对 `E:\GAONA\20260910\PurgePump_PCBA_FCT完整方案包_R02\PurgePump_PCBA_FCT完整方案包` 的同名资产做了 OpenXML/文件指标对照：
+
+| 指标 | 试验 4 | PurgePump golden | 判断 |
+| --- | ---: | ---: | --- |
+| DOCX 文件大小 | 3.71 MB | 83.66 MB | 仍缺少 golden 的大规模图文/内部证据编排 |
+| DOCX 表格 / drawing / media | 81 / 5 / 5 | 198 / 112 / 107 | 结构有内容，但图文密度仍明显不足 |
+| PPTX 文件大小 / media | 3.69 MB / 5 | 15.57 MB / 24 | 仍需把工程视图、流程图和证据图铺到相应页面 |
+| PDF 文件大小 | 5.93 KB | 5.39 MB | 目前是多页文本 PDF，不是 golden 级图文 PDF |
+| PNG 总量 | 76.37 MB（106 张） | 84.56 MB（106 张） | 视觉像素量接近，但 Office/PDF 没有复用足够的视觉证据 |
+
+因此本试验的准确结论是：生产链路和质量门禁已被真实验证，ZIP 不再是空壳；但“接近 golden sample”的交付内容目标尚未完成，尤其是 DOCX/PPTX/PDF 的图文编排仍是后续 P1 工作，不能把本次 `PASS / FROZEN` 误报为 golden 等级完成。
