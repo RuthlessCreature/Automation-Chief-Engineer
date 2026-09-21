@@ -143,3 +143,16 @@
   | `top.png` | `3270A9648E0BE401C6A4A1AC4253B0A219F1D8770C21251D33E2424A888C1B88` | golden top view | EXACT |
 
 这轮证明的不只是 STEP 文件“像”，而是生产 ZIP 中的整机 CAD 与五张机台视图均由受控 golden 资产原样进入交付，Office 图文链路也会优先引用这些机台视图。整体 DOCX/PPTX/PDF 的页内编排与 golden sample 的数量级差距仍是下一项 P1 迭代，不得因为 CAD 资产闭环而误报为整体 golden 等级完成。
+
+### 试验 8：Office 证据密度迭代与资源回归（2026-09-21）
+
+- 首次尝试任务：`8d6462fe-4265-434a-87b3-30148f2ecf1f`。将 24 张高分辨率工程图同时嵌入 DOCX/PPTX 后，G15 在 `PACKAGING` 阶段真实触发 `WORKFLOW_EXECUTION_ERROR`，任务为 `FAILED`，未冻结 ZIP、未扣 credits；该失败已保留为回归证据，不能伪装成质量通过。
+- 修复：将 Office 证据序列改为 12 张受控图，顺序固定为 5 张 golden 机台视图、5 张产品视图、2 张标注视图；保留媒体/绘图门禁，同时把 Worker 打包内存控制在生产边界内。
+- 修复版本：Worker `575c1f01-8416-451b-9eee-7b84159f47de`；Git `17c931a`，已推送 `main`。
+- 复测任务：`3535abba-26c4-49d8-a395-48c6c4877b3d`，结果 `PACKAGED / PASS / 15/15`。
+- 下载：`E:\Downloads\office-evidence-3535abba-26c4-49d8-a395-48c6c4877b3d.zip`；ZIP SHA-256：`5D5AC0D08F4D91C9B551A927F871E71989B9F7FABC2CF9056B223846E8D914EC`。
+- 权威 validator：`PASS [R2-F10-GOLDEN-121]`；121 个 ZIP 文件、119 个客户载荷、31 页 PPT、21 张 Excel 工作表通过。
+- Office 载荷实测：DOCX `6,206,883` bytes / `12` 个 `word/media` / `12` 个 drawing；PPTX `6,186,428` bytes / `12` 个 `ppt/media`。相比试验 6 的 5 张媒体，已把真实工程证据带入 Office，但没有为了追求数量再次突破生产资源边界。
+- 该 ZIP 的 `concept.step`、`concept.brep`、`concept.stl` 和五张 PurgePump golden 机台视图与试验 7 的 hash 完全一致。
+
+当前可准确表述为：PurgePump 的 CAD/机台视图已达到 golden 资产级一致，Office 已从“5 张低密度图”提升到“12 张受控证据图”，生产打包具备回归闭环；DOCX/PPTX/PDF 的版式、页内叙事和 PDF 图文复刻仍未达到 golden sample 的完整同等水平，后续还需继续迭代，不能把当前 PASS 误报为整体完成。
