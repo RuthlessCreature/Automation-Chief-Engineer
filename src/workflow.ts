@@ -325,7 +325,11 @@ function safeWorkflowError(error: unknown): string {
 }
 
 function isRetryableWorkflowError(code: string): boolean {
-  return /^(MINIMAX_(HTTP_(408|409|429|5\d\d)|INVALID_RESPONSE|NON_JSON_CANDIDATE|API_5\d\d)|WORKFLOW_EXECUTION_TIMEOUT|UPSTREAM_TIMEOUT)$/.test(code);
+  // Cloudflare Workflow can wrap a transient provider/runtime exception in a
+  // generic WORKFLOW_EXECUTION_ERROR before it reaches this catch block. Keep
+  // the bounded two-attempt retry policy active for that wrapper; permanent
+  // quality blocks still use the explicit QUALITY_BLOCKED branch above.
+  return /^(WORKFLOW_EXECUTION_ERROR|MINIMAX_(HTTP_(408|409|429|5\d\d)|INVALID_RESPONSE|NON_JSON_CANDIDATE|API_5\d\d)|WORKFLOW_EXECUTION_TIMEOUT|UPSTREAM_TIMEOUT)$/.test(code);
 }
 
 function renderArtifact(artifact: CandidateArtifact, stage: PipelineStage): string {
