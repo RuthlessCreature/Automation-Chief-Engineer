@@ -92,3 +92,15 @@
 旧构建器只返回四根立柱、顶框、搁板和两个盒状巢位，不能称为 FCT 机台概念。已重写 `cadcore/runner/build_concept.py`，加入 700×600×1600 参考包络、双伺服滑台、四工位 2-up 夹具/探针床、四组浮动压头、Hall/负载接口、电柜/HMI、线缆拖链和安全光幕；同时将无尺寸时的 Worker fallback 从 1800×1200×1850 修正为 golden FCT 的 700×600×1600，并增加静态架构回归门禁。
 
 新构建器已用本机 OCCT 7.9.3.1.1 实际生成 BREP/STEP/STL，文件均可写出，实体统计显著接近 golden 的部件级复杂度。由于当前 Windows Docker daemon 未运行，新的 CADCore 容器尚未滚动到生产；在容器重建并完成生产重跑前，不应声称线上 STEP 已修复。
+
+### 试验 5：新 CADCore 容器线上复测
+
+- 任务：`308fca59-e43f-4039-8223-02bb51e8c93c`
+- 输入：PurgePump 产品 STL；提示词明确要求 700×600×1600、双伺服滑台、四工位 2-up 夹具、四个浮动压头、探针床、Hall/负载接口、电柜/HMI 与安全光幕。
+- 结果：`PACKAGED / 15/15`；新容器在 Cloudflare Registry 推送并滚动到 `automation-chief-engineer-cloud-cadcoresandbox` 后真实执行。
+- 下载：`E:\Downloads\structured-step-308fca59-e43f-4039-8223-02bb51e8c93c.zip`
+- ZIP SHA-256：`811aba7e0b8be718cd92e38131424d2d523c5c71fdafc2d5825c75624cb34a12`
+- 权威 validator：`PASS [R2-F10-GOLDEN-121]`。
+- 线上 `03_整机概念CAD与视图/concept.step`：2,088,463 bytes、150 `MANIFOLD_SOLID_BREP`、150 `NEXT_ASSEMBLY_USAGE_OCCURRENCE`、768 `ADVANCED_FACE`；这与旧版 8 个实体的占位机台不是同一种输出。
+
+因此，“机台 STEP 只有几根柱子和盒子”的 P1 缺陷已在代码、容器、生产任务和 ZIP 四层闭环复测关闭。仍需单独继续提升的是 Office/PDF 的 golden 级图文编排；这与本次机台实体几何缺陷是两个不同问题，不能互相抵消。
