@@ -226,3 +226,13 @@
 已真实通过当前 validator 的 Office evidence 包作为 QA 基线；其他历史包不会被自动伪造升级，需重新受控打包后才恢复下载资格。
 
 revision 保护上线后的短生产浏览器回归为 3/4 PASS：任务切换、多选、慢响应竞态通过；唯一失败是旧测试仍查找已被正确阻断的 5015 标题，现已将测试基线同步到 3535 当前 validator PASS 包。旧 5015 的 `QUALITY_BLOCKED` 是预期质量阻断，不是回归失败。
+
+### 本轮完整生产 QA 终态
+
+- 基线纠偏后的 `DEL-005`：真实浏览器下载 3535 包，SHA `5d5ac0d08f4d91c9b551a927f871e71989b9f7fabc2cf9056b223846e8d914ec`，Golden-121 validator `PASS`。
+- 泛化任务 `ea17466c-7274-47cf-8df1-839de2938239`：15 个阶段全部生成并接受，首次在 PACKAGING 触发 `WORKFLOW_EXECUTION_ERROR`，自动 retry 1/2 均有 ledger 记录；在 45 分钟 QA 窗口内未到终态，随后收口为 `FAILED / BLOCKED / retry_count=2`，没有 ZIP、没有扣 credits。终态 `errorSummary` 为 Durable Object 在发布更新时重置，不能解释为 validator PASS。
+- 修复已部署：validator sandbox command 300 秒硬超时；旧历史包 validator revision 保护和 D1 migration `0010_delivery_validator_revision.sql` 已应用。
+- 受控数据清理：3535 通过包 backfill 当前 revision；旧 5015 包置为 `REJECTED`，任务置为 `QUALITY_BLOCKED / DELIVERY_GOLDEN_VALIDATOR_REWORK`。
+- 最新短生产浏览器回归：4/4 PASS；完整本地测试：11 files / 49 tests PASS；Git `7aeaf2f` 已推送 `main`。
+
+准确结论：界面竞态、历史垃圾包误下载、QA 基线误指向和打包无限等待均已形成修复；“通用无产品 CAD 任务稳定生成完整 Golden-121 ZIP”仍未通过生产证据，下一轮必须在新 300 秒边界下重跑并观察是否以明确 `PACKAGED` 或可审计 `FAILED` 结束。
