@@ -1,3 +1,4 @@
+import { mergeTaskEvents, reconcileTaskState } from '/event-state.js';
 const ace = window.__ACE_APP__;
 const stagesFast = [
   ['intake','需求接收与输入完整性','Intake Router','G00'],['requirements','需求工程','Requirement Engineer','G01'],['feasibility','可行性架构','Feasibility Architect','G03'],['vision','机器视觉','Vision Engineer','G04'],['mechanical','机械方案','Mechanical Engineer','G05'],['electrical','电控与安全','Electrical Control Engineer','G06'],['software_mes','软件与 MES','Software MES Engineer','G07'],['product_cad','产品 CAD','Product CAD Engineer','G02'],['ct_capacity','节拍与产能','CT Capacity Engineer','G08'],['bom_cost','BOM 与制造成本','BOM Cost Engineer','G09'],['digital_twin','数字孪生渲染','Digital Twin Renderer','G10'],['validation','验证与质量','Validation Engineer','G11'],['project_sales','项目与商务','Project Sales Engineer','G12'],['documentation','文档受控汇编','Documentation Engineer','G13'],['chief_review','总工审查与交付打包','Chief Reviewer','G14/G15'],
@@ -5,8 +6,12 @@ const stagesFast = [
 const escapeFast = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
 const eventReasonsFast = (event) => String(event?.payload?.reasons || '').trim();
 let switchToken = 0;
+let refreshInFlight = false;
 function invalidateFastTaskRequests(){switchToken+=1;}
 
+// Poll responses can complete out of order when the Worker or the browser is
+// under load. Treat the event sequence as the authoritative ordering key and
+// merge by seq so an older response can never roll the pipeline back.
 async function jsonFast(path, options = {}) {
   const response = await fetch(path, { credentials: 'same-origin', headers: { Accept: 'application/json', ...(options.headers || {}) }, ...options });
   const data = await response.json();
@@ -126,20 +131,22 @@ function renderFastTask(task, inputs) {
 }
 
 async function refreshFast(token) {
-  if (token !== switchToken || !ace?.state?.task) return;
+  if (token !== switchToken || !ace?.state?.task || refreshInFlight) return;
+  refreshInFlight = true;
   try {
     const state = ace.state;
     const after = state.events.at(-1)?.seq || 0;
     const [{ task }, eventResult] = await Promise.all([jsonFast(`/api/tasks/${state.task.id}`), jsonFast(`/api/tasks/${state.task.id}/events?after=${after}`)]);
     if (token !== switchToken) return;
     if (eventResult.events.length) {
-      state.events.push(...eventResult.events);
+      state.events = mergeTaskEvents(state.events, eventResult.events);
       const [{ artifacts }, { delivery }] = await Promise.all([jsonFast(`/api/tasks/${state.task.id}/artifacts`), jsonFast(`/api/tasks/${state.task.id}/delivery`)]);
       state.artifacts = artifacts;
       state.delivery = delivery;
     }
-    renderFastTask(task, state.inputs);
+    renderFastTask(reconcileTaskState(task, state.events), state.inputs);
   } catch (error) { console.warn('task refresh failed', error); }
+  finally { refreshInFlight = false; }
 }
 
 async function switchTaskFast(id) {
@@ -159,7 +166,7 @@ async function switchTaskFast(id) {
     ace.state.artifacts = [];
     ace.state.events = [];
     ace.state.delivery = null;
-    renderFastTask(task, inputs);
+    renderFastTask(reconcileTaskState(task, ace.state.events), inputs);
     document.dispatchEvent(new CustomEvent('ace:task-switched', { detail: { taskId: task.id } }));
 
     const [artifactResult, eventResult, deliveryResult] = await Promise.allSettled([
@@ -170,11 +177,11 @@ async function switchTaskFast(id) {
     if (token !== switchToken) return;
     if (artifactResult.status === 'fulfilled') ace.state.artifacts = artifactResult.value.artifacts;
     else console.warn('task artifacts load failed', artifactResult.reason);
-    if (eventResult.status === 'fulfilled') ace.state.events = eventResult.value.events;
+    if (eventResult.status === 'fulfilled') ace.state.events = mergeTaskEvents([], eventResult.value.events);
     else console.warn('task events load failed', eventResult.reason);
     if (deliveryResult.status === 'fulfilled') ace.state.delivery = deliveryResult.value.delivery;
     else console.warn('task delivery load failed', deliveryResult.reason);
-    renderFastTask(task, inputs);
+    renderFastTask(reconcileTaskState(task, ace.state.events), inputs);
     ace.state.timer = setInterval(() => refreshFast(token), 1000);
   } catch (error) {
     if (token === switchToken && body) body.innerHTML = `<div class="inspector-empty">${escapeFast(error.message)}</div>`;
