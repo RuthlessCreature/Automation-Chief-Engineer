@@ -213,3 +213,14 @@
 同一条泛化 QA 任务 `ea17466c-7274-47cf-8df1-839de2938239` 在 15 阶段全部通过后进入 `PACKAGING`，第一次打包触发了 retry，第二次在 45 分钟 QA 窗口内仍未返回，任务保持 `PACKAGING / retry_count=1`。这不是 PASS，也不是可接受的“继续运行”：它暴露了 CADCore Golden-121 validator 调用没有总时限的 P1 缺陷。
 
 已在 `src/cadcore.ts` 为 validator sandbox command 增加 300 秒硬超时。超时会回到现有 `WORKFLOW_EXECUTION_ERROR` 自动重试/终态 FAILED 逻辑，不再允许打包调用无限占住任务。部署后必须重新跑一条泛化任务，证明超时能按边界收口；本条旧任务的悬挂状态仍需单独受控清理，不能改写成 PASS。
+
+### 历史交付包 revision 保护
+
+本次对 2026-09-19 的旧 5015 包复测证明：数据库的 `PACKAGED/PASS` 不能代表当前 validator 合同仍然成立。新增 `delivery_packages.validator_revision` 与 `GOLDEN_VALIDATOR_REVISION`：
+
+- 新冻结包必须写入当前 validator revision。
+- `/delivery/preview` 与 `/delivery/download` 只允许当前 revision；旧包返回受控返工错误，不再把历史占位 ZIP 继续交给客户。
+- `freezeGoldenCustomerDelivery` 不再仅凭旧 manifest 的 119 文件数量信任历史包。
+- 本地安全回归 fixture 已补齐 revision，完整测试仍为 `11 files / 49 tests PASS`。
+
+已真实通过当前 validator 的 Office evidence 包作为 QA 基线；其他历史包不会被自动伪造升级，需重新受控打包后才恢复下载资格。

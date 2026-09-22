@@ -1,6 +1,7 @@
 import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { openWorkflowIncident, resolveTaskIncidents } from "../src/incidents";
+import { GOLDEN_VALIDATOR_REVISION } from "../src/golden-delivery";
 
 async function register(email: string): Promise<string> {
   const response = await SELF.fetch("https://worker.test/api/auth/register", {
@@ -37,8 +38,8 @@ async function seedFrozenDelivery(taskId: string): Promise<Uint8Array> {
   await env.ARTIFACTS.put(manifestKey, JSON.stringify({ schemaVersion: "test", files: [] }));
   const now = new Date().toISOString();
   await env.DB.prepare(
-    "INSERT INTO delivery_packages (id, task_id, status, manifest_key, zip_key, sha256, approved_by, created_at, frozen_at) VALUES (?, ?, 'FROZEN', ?, ?, ?, NULL, ?, ?)",
-  ).bind("pkg-" + taskId, taskId, manifestKey, zipKey, "A".repeat(64), now, now).run();
+    "INSERT INTO delivery_packages (id, task_id, status, manifest_key, zip_key, sha256, approved_by, created_at, frozen_at, validator_revision) VALUES (?, ?, 'FROZEN', ?, ?, ?, NULL, ?, ?, ?)",
+  ).bind("pkg-" + taskId, taskId, manifestKey, zipKey, "A".repeat(64), now, now, GOLDEN_VALIDATOR_REVISION).run();
   await env.DB.prepare("UPDATE tasks SET state = 'PACKAGED', quality_status = 'PASS', updated_at = ? WHERE id = ?")
     .bind(now, taskId).run();
   return bytes;

@@ -2,6 +2,7 @@ import { buildConceptCadAssets, deriveCadDeliveryAssets, validateGoldenDeliveryZ
 import { PIPELINE } from "./domain";
 import {
   GOLDEN_SCHEMA,
+  GOLDEN_VALIDATOR_REVISION,
   docx,
   docxForDelivery,
   envelope,
@@ -69,6 +70,7 @@ type ExistingPackageRow = {
   sha256: string | null;
   created_at: string;
   frozen_at: string | null;
+  validator_revision: string | null;
 };
 
 type ZipEntry = { name: string; data: Uint8Array };
@@ -211,7 +213,7 @@ export async function freezeGoldenCustomerDelivery(env: Env, taskId: string): Pr
     if (oldManifest) {
       try {
         const parsed = JSON.parse(await oldManifest.text()) as { schemaVersion?: string; files?: unknown[] };
-        if (parsed.schemaVersion === GOLDEN_SCHEMA && parsed.files?.length === 119) {
+        if (parsed.schemaVersion === GOLDEN_SCHEMA && parsed.files?.length === 119 && existing.validator_revision === GOLDEN_VALIDATOR_REVISION) {
           return { id: existing.id, taskId, status: "FROZEN", manifestKey: existing.manifest_key, zipKey: existing.zip_key, sha256: existing.sha256, artifactCount: 121, frozenAt: existing.frozen_at };
         }
       } catch {
@@ -379,8 +381,8 @@ export async function freezeGoldenCustomerDelivery(env: Env, taskId: string): Pr
   await env.ARTIFACTS.put(manifestKey, manifestJsonBytes, { httpMetadata: { contentType: "application/json; charset=utf-8" }, customMetadata: { taskId, packageId, schemaVersion: GOLDEN_SCHEMA, sha256: await sha256(manifestJsonBytes) } });
   await env.ARTIFACTS.put(zipKey, zipBytes, { httpMetadata: { contentType: "application/zip", contentDisposition: "attachment; filename*=UTF-8''task-" + taskId + ".zip" }, customMetadata: { taskId, packageId, schemaVersion: GOLDEN_SCHEMA, sha256: packageHash } });
   await env.DB.prepare(
-    "INSERT INTO delivery_packages (id, task_id, status, manifest_key, zip_key, sha256, approved_by, created_at, frozen_at) VALUES (?, ?, 'FROZEN', ?, ?, ?, NULL, ?, ?) ON CONFLICT(task_id) DO UPDATE SET status = 'FROZEN', manifest_key = excluded.manifest_key, zip_key = excluded.zip_key, sha256 = excluded.sha256, frozen_at = excluded.frozen_at",
-  ).bind(packageId, taskId, manifestKey, zipKey, packageHash, createdAt, frozenAt).run();
+    "INSERT INTO delivery_packages (id, task_id, status, manifest_key, zip_key, sha256, approved_by, created_at, frozen_at, validator_revision) VALUES (?, ?, 'FROZEN', ?, ?, ?, NULL, ?, ?, ?) ON CONFLICT(task_id) DO UPDATE SET status = 'FROZEN', manifest_key = excluded.manifest_key, zip_key = excluded.zip_key, sha256 = excluded.sha256, frozen_at = excluded.frozen_at, validator_revision = excluded.validator_revision",
+  ).bind(packageId, taskId, manifestKey, zipKey, packageHash, createdAt, frozenAt, GOLDEN_VALIDATOR_REVISION).run();
 
   return { id: packageId, taskId, status: "FROZEN", manifestKey, zipKey, sha256: packageHash, artifactCount: 121, frozenAt };
 }

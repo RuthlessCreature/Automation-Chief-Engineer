@@ -1,5 +1,8 @@
 export const GOLDEN_PROFILE = "R2-F10-GOLDEN-121";
 export const GOLDEN_SCHEMA = "R2-F10-GOLDEN-121/v1";
+// A frozen package is downloadable only when it was produced and validated
+// under the current authoritative Golden-121 contract.
+export const GOLDEN_VALIDATOR_REVISION = "R2-F10-GOLDEN-121/2026-09-22";
 export type Report = { stageId:string; title:string; body:string; sha256:string; provider:string; model:string };
 export type Entry = { relativePath:string; data:Uint8Array; description:string; ownerModule:string; status:string; validationResult:string };
 export type Envelope = { widthMm:number; depthMm:number; heightMm:number; source:string; assumed:boolean };

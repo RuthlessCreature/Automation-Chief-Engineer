@@ -6,6 +6,7 @@ import { providerReadiness } from "./provider";
 import { clearSessionCookie, hashPassword, isLocalEnvironment, isoNow, readCookie, sessionCookie, verifyPassword } from "./security";
 import type { TaskCoordinator } from "./task-coordinator";
 import { buildSafeHtmlPreview, buildSafeXlsxHtmlPreview } from "./package";
+import { GOLDEN_VALIDATOR_REVISION } from "./golden-delivery";
 
 type UserRow = { id: string; email: string; credits: number; role: string };
 type LoginRow = UserRow & { password_salt: string; password_hash: string };
@@ -25,7 +26,7 @@ type ArtifactRow = { id: string; task_id: string; stage_id: string; title: strin
 type InputRow = { id: string; task_id: string; original_name: string; content_type: string; size_bytes: number; sha256: string; intake_status: "STAGED_FORMAT_VALIDATED" | "REJECTED"; created_at: string };
 type CadInputRow = InputRow & { storage_key: string };
 type CadJobRow = { id: string; task_id: string; input_id: string; kind: string; status: string; report_storage_key: string | null; normalized_brep_key: string | null; error_code: string | null; engine_json?: string; created_at: string; started_at: string | null; completed_at: string | null };
-type DeliveryRow = { id: string; task_id: string; status: "ASSEMBLING" | "FROZEN" | "REJECTED"; manifest_key: string; zip_key: string | null; sha256: string | null; approved_by: string | null; created_at: string; frozen_at: string | null };
+type DeliveryRow = { id: string; task_id: string; status: "ASSEMBLING" | "FROZEN" | "REJECTED"; manifest_key: string; zip_key: string | null; sha256: string | null; approved_by: string | null; created_at: string; frozen_at: string | null; validator_revision: string | null };
 
 const jsonHeaders = { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" };
 
@@ -418,14 +419,15 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
 
   if (taskId && parts.length === 4 && parts[0] === "api" && parts[1] === "tasks" && parts[3] === "delivery" && method === "GET") {
     await requireTaskOwner(env, user.id, taskId);
-    const delivery = await env.DB.prepare("SELECT id, task_id, status, manifest_key, zip_key, sha256, approved_by, created_at, frozen_at FROM delivery_packages WHERE task_id = ?")
+    const delivery = await env.DB.prepare("SELECT id, task_id, status, manifest_key, zip_key, sha256, approved_by, created_at, frozen_at, validator_revision FROM delivery_packages WHERE task_id = ?")
       .bind(taskId)
       .first<DeliveryRow>();
     if (!delivery) return json({ delivery: null });
     const artifactCount = await env.DB.prepare("SELECT COUNT(*) AS count FROM artifacts WHERE task_id = ? AND status = 'ACCEPTED'")
       .bind(taskId)
       .first<{ count: number }>();
-    return json({ delivery: { ...delivery, artifact_count: Number(artifactCount?.count ?? 0), download_path: delivery.status === "FROZEN" && delivery.zip_key ? `/api/tasks/${taskId}/delivery/download` : null } });
+    const currentValidator = delivery.validator_revision === GOLDEN_VALIDATOR_REVISION;
+    return json({ delivery: { ...delivery, artifact_count: Number(artifactCount?.count ?? 0), validator_current: currentValidator, download_path: delivery.status === "FROZEN" && delivery.zip_key && currentValidator ? `/api/tasks/${taskId}/delivery/download` : null } });
   }
 
   if (taskId && parts.length === 5 && parts[0] === "api" && parts[1] === "tasks" && parts[3] === "delivery" && parts[4] === "preview" && method === "GET") {
@@ -438,9 +440,10 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
         : null;
     if (!previewSpec) throw new HttpError(400, "只允许预览已冻结 Golden-121 交付包中的受控 Office 派生副本。");
     const { previewName, sourceFile } = previewSpec;
-    const delivery = await env.DB.prepare("SELECT status, manifest_key, zip_key FROM delivery_packages WHERE task_id = ?")
-      .bind(taskId).first<Pick<DeliveryRow, "status" | "manifest_key" | "zip_key">>();
+    const delivery = await env.DB.prepare("SELECT status, manifest_key, zip_key, validator_revision FROM delivery_packages WHERE task_id = ?")
+      .bind(taskId).first<Pick<DeliveryRow, "status" | "manifest_key" | "zip_key" | "validator_revision">>();
     if (!delivery || delivery.status !== "FROZEN" || !delivery.zip_key) throw new HttpError(404, "客户 ZIP 尚未冻结。");
+    if (delivery.validator_revision !== GOLDEN_VALIDATOR_REVISION) throw new HttpError(409, "客户 ZIP 需要按当前 Golden-121 validator 受控返工后才能预览。");
     const previewKey = `${delivery.manifest_key.replace(/\/manifest\.json$/, "")}/previews/${previewName}`;
     let preview = await env.ARTIFACTS.get(previewKey);
     if (!preview) {
@@ -468,10 +471,11 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
 
   if (taskId && parts.length === 5 && parts[0] === "api" && parts[1] === "tasks" && parts[3] === "delivery" && parts[4] === "download" && method === "GET") {
     await requireTaskOwner(env, user.id, taskId);
-    const delivery = await env.DB.prepare("SELECT id, task_id, status, manifest_key, zip_key, sha256, approved_by, created_at, frozen_at FROM delivery_packages WHERE task_id = ?")
+    const delivery = await env.DB.prepare("SELECT id, task_id, status, manifest_key, zip_key, sha256, approved_by, created_at, frozen_at, validator_revision FROM delivery_packages WHERE task_id = ?")
       .bind(taskId)
       .first<DeliveryRow>();
     if (!delivery || delivery.status !== "FROZEN" || !delivery.zip_key || !delivery.sha256) throw new HttpError(404, "客户 ZIP 尚未冻结。");
+    if (delivery.validator_revision !== GOLDEN_VALIDATOR_REVISION) throw new HttpError(409, "客户 ZIP 需要按当前 Golden-121 validator 受控返工后才能下载。");
     const object = await env.ARTIFACTS.get(delivery.zip_key);
     if (!object) throw new HttpError(404, "客户 ZIP 存储对象不存在。");
     return new Response(object.body, {
