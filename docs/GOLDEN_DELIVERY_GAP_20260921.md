@@ -187,3 +187,12 @@
 - 新增 3 个回归用例：乱序/重复事件合并、较新事件覆盖陈旧任务响应、较新 D1 状态覆盖旧事件。
 
 本轮本地结果：`11 files / 49 tests PASS`（其中新增前端事件状态 3 条）；`npm run types` 与 `wrangler deploy --dry-run` 均通过。该修复尚未完成生产浏览器自动化复测，发布后仍需在 `zg.gaona.world` 对任务切换、阶段显示和重试终态做真实回归；这项复测未完成前不写成生产 PASS。
+
+### 生产浏览器复测结果
+
+- Worker 版本：`1ea3dfe6-6ab3-4570-9bc8-b998847e81a0`，域名 `zg.gaona.world`。
+- `test/production-browser.spec.ts`：4/4 通过，25.0 s。
+- 覆盖：任务切换与 Inspector 响应、多选复选框、已冻结 Customer Delivery 轮询稳定性、新建任务取消无副作用、慢响应不能覆盖后选任务。
+- 入口冒烟：`/`、`/event-state.js`、`/api/me` 均 HTTP 200。
+
+因此“前端事件乱序/慢响应覆盖”的本轮修复已有生产浏览器证据；这不等同于泛化任务已经生成 golden 级 ZIP。泛化无 CAD 任务的生产 MiniMax/G12 失败与待重跑缺口仍按上一节记录。
