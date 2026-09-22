@@ -7,8 +7,12 @@ import { join } from "node:path";
 const BASE = process.env.ACE_PROD_URL ?? "https://zg.gaona.world";
 const DB = "automation-chief-engineer-cloud";
 const EMAIL = process.env.ACE_QA_EMAIL ?? "test@test.com";
-const QA_5015_TITLE = process.env.ACE_QA_5015_TITLE ?? "5015 | Golden-121 PROD rerun";
-const QA_5015_SHA = process.env.ACE_QA_5015_SHA ?? "bf6fb5f34941e49998a808d5e939bea75c0c0afd5c4db14ddc13c733cf0a0035";
+// Do not use the historical 5015 task as a quality baseline. It was frozen
+// before the current Golden-121 validator and is intentionally retained as a
+// rework regression (the validator reports 107 defects). The baseline must be
+// an immutable ZIP already proven by the current validator.
+const QA_5015_TITLE = process.env.ACE_QA_5015_TITLE ?? "QA Office evidence sequence 1789995823154";
+const QA_5015_SHA = process.env.ACE_QA_5015_SHA ?? "5d5ac0d08f4d91c9b551a927f871e71989b9f7fabc2cf9056b223846e8d914ec";
 const ALLOW_PROD_MUTATION = process.env.ACE_QA_ALLOW_PROD_MUTATION === "1";
 const EXPECTED_STAGES = [
   "需求接收与输入完整性",
@@ -100,6 +104,17 @@ async function createSession() {
 function cleanupSession() {
   if (!sessionId) return;
   try { d1(`DELETE FROM sessions WHERE id=${sqlq(sessionId)}`); } catch {}
+}
+
+function validateDownloadedZip(path: string): string {
+  try {
+    return execFileSync(PYTHON, ["scripts/validate_r2_f10_golden_delivery.py", path], { encoding: "utf8" });
+  } catch (error) {
+    const result = error as NodeJS.ErrnoException & { stdout?: string | Buffer; stderr?: string | Buffer };
+    const stdout = String(result.stdout ?? "").trim();
+    const stderr = String(result.stderr ?? "").trim();
+    throw new Error(`Golden-121 validator failed (exit=${result.code ?? "unknown"})${stdout ? ` stdout=${stdout}` : ""}${stderr ? ` stderr=${stderr}` : ""}`);
+  }
 }
 
 async function authenticatedContext(browser: Browser) {
@@ -281,7 +296,7 @@ test("production UI full-flow acceptance", async ({ browser }) => {
       const bytes = readFileSync(path!);
       const sha = createHash("sha256").update(bytes).digest("hex");
       expect(sha).toBe(QA_5015_SHA);
-      const output = execFileSync(PYTHON, ["scripts/validate_r2_f10_golden_delivery.py", path!], { encoding: "utf8" });
+      const output = validateDownloadedZip(path!);
       expect(output).toContain("PASS [R2-F10-GOLDEN-121]");
       return `${suggested}; sha256=${sha}; validator=PASS`;
     });
@@ -447,7 +462,7 @@ test("production UI full-flow acceptance", async ({ browser }) => {
       expect(path).toBeTruthy();
       const bytes = readFileSync(path!);
       const sha = createHash("sha256").update(bytes).digest("hex");
-      const output = execFileSync(PYTHON, ["scripts/validate_r2_f10_golden_delivery.py", path!], { encoding: "utf8" });
+      const output = validateDownloadedZip(path!);
       expect(output).toContain("PASS [R2-F10-GOLDEN-121]");
       return `sha256=${sha}; validator=PASS`;
     });

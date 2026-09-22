@@ -198,3 +198,12 @@
 因此“前端事件乱序/慢响应覆盖”的本轮修复已有生产浏览器证据；这不等同于泛化任务已经生成 golden 级 ZIP。泛化无 CAD 任务的生产 MiniMax/G12 失败与待重跑缺口仍按上一节记录。
 
 另外，终态 `WORKFLOW_EXECUTION_ERROR` incident 现在保留经过脱敏且限长的 `errorSummary`，便于下一次泛化任务复跑时区分 MiniMax 返回、Workflow 包装异常与资源边界；不会把 Authorization、API key 或 token 写入 D1。该改动只增强诊断，不放宽重试、Gate 或 validator。
+
+## 生产 QA 基线纠偏（2026-09-22）
+
+全流程生产 QA 首次按历史任务 `5015 | Golden-121 PROD rerun | 2026-09-19` 下载时，发现该任务虽然数据库状态是 `PACKAGED / quality_status=PASS`，但当前权威 validator 实测为 `REWORK [R2-F10-GOLDEN-121]`，共 107 项缺陷：DOCX/PPTX/PDF/XLSX 是旧占位载荷，机台与视觉 PNG 为 `320×220`。这不是浏览器下载故障，而是历史包在 validator 收紧前被冻结、旧状态被错误地继续当成质量基线。
+
+- 该历史任务不得再作为 QA golden 基线，也不得把它的 `PACKAGED/PASS` 解释成当前 Golden-121 PASS。
+- QA 基线已切换为已真实通过当前 validator 的 `QA Office evidence sequence 1789995823154`，ZIP SHA-256：`5d5ac0d08f4d91c9b551a927f871e71989b9f7fabc2cf9056b223846e8d914ec`。
+- `test/production-fullflow-ui.spec.ts` 的 validator 调用现在保留 stdout/stderr；validator 失败会显示完整 REWORK 项，不再只显示无诊断的 `Command failed`。
+- 该缺陷说明交付包需要携带 validator revision/质量策略版本，不能只依赖 `PACKAGED` 状态和旧 manifest 数量；历史包清理/受控返工仍是后续 P1 工作，未完成前不扩大为全量自动拒绝。
