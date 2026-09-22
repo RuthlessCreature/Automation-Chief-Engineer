@@ -224,3 +224,5 @@
 - 本地安全回归 fixture 已补齐 revision，完整测试仍为 `11 files / 49 tests PASS`。
 
 已真实通过当前 validator 的 Office evidence 包作为 QA 基线；其他历史包不会被自动伪造升级，需重新受控打包后才恢复下载资格。
+
+revision 保护上线后的短生产浏览器回归为 3/4 PASS：任务切换、多选、慢响应竞态通过；唯一失败是旧测试仍查找已被正确阻断的 5015 标题，现已将测试基线同步到 3535 当前 validator PASS 包。旧 5015 的 `QUALITY_BLOCKED` 是预期质量阻断，不是回归失败。

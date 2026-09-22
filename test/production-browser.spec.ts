@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 const baseURL = process.env.ACE_PROD_URL ?? "https://zg.gaona.world";
 const email = process.env.ACE_E2E_EMAIL;
 const password = process.env.ACE_E2E_PASSWORD;
+const packagedBaselineTitle = process.env.ACE_E2E_PACKAGED_TITLE ?? "QA Office evidence sequence 1789995823154";
 
 test.describe("production command center regression", () => {
   test.skip(!process.env.ACE_RUN_PROD_E2E || !email || !password, "set ACE_RUN_PROD_E2E=1, ACE_E2E_EMAIL and ACE_E2E_PASSWORD");
@@ -56,8 +57,8 @@ test.describe("production command center regression", () => {
     await page.locator("#auth-submit").click();
     await expect(page.locator("#task-list .task-row").first()).toBeVisible({ timeout: 20_000 });
 
-    const packaged = page.locator("#task-list .task-row", { hasText: "5015 | Golden-121 PROD rerun" }).first();
-    test.skip(await packaged.count() === 0, "requires the production 5015 packaged regression task");
+    const packaged = page.locator("#task-list .task-row", { hasText: packagedBaselineTitle }).first();
+    test.skip(await packaged.count() === 0, `requires the current validator packaged regression task: ${packagedBaselineTitle}`);
     await packaged.click();
     await expect(page.locator("#task-state")).toHaveText("PACKAGED", { timeout: 20_000 });
     await page.locator('.layer-tab[data-layer="delivery"]').click();
