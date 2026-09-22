@@ -136,7 +136,11 @@ export class TaskWorkflow extends WorkflowEntrypoint<Env, TaskWorkflowParams> {
           code,
           severity: "ERROR",
           source: "WORKFLOW_TERMINAL_FAILURE",
-          detail: { retryExhausted: isRetryableWorkflowError(code), creditsCharged: false },
+          detail: {
+            retryExhausted: isRetryableWorkflowError(code),
+            creditsCharged: false,
+            errorSummary: safeWorkflowErrorDetail(error),
+          },
         });
       } catch { /* terminal task state is already persisted */ }
       if (coordinator) {
@@ -332,6 +336,14 @@ function safeWorkflowError(error: unknown): string {
   if (/^QUALITY_BLOCKED:[a-z0-9_-]{1,80}$/.test(message)) return message;
   if (/^[A-Z0-9_:-]{3,120}$/.test(message)) return message;
   return "WORKFLOW_EXECUTION_ERROR";
+}
+
+function safeWorkflowErrorDetail(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return message
+    .replace(/(authorization|api[-_ ]?key|access[-_ ]?token|bearer)\s*[:=]\s*[^\s,;]+/gi, "$1=[REDACTED]")
+    .replace(/\s+/g, " ")
+    .slice(0, 320);
 }
 
 function isRetryableWorkflowError(code: string): boolean {

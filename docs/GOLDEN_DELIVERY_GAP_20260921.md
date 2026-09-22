@@ -196,3 +196,5 @@
 - 入口冒烟：`/`、`/event-state.js`、`/api/me` 均 HTTP 200。
 
 因此“前端事件乱序/慢响应覆盖”的本轮修复已有生产浏览器证据；这不等同于泛化任务已经生成 golden 级 ZIP。泛化无 CAD 任务的生产 MiniMax/G12 失败与待重跑缺口仍按上一节记录。
+
+另外，终态 `WORKFLOW_EXECUTION_ERROR` incident 现在保留经过脱敏且限长的 `errorSummary`，便于下一次泛化任务复跑时区分 MiniMax 返回、Workflow 包装异常与资源边界；不会把 Authorization、API key 或 token 写入 D1。该改动只增强诊断，不放宽重试、Gate 或 validator。
