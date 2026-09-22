@@ -207,3 +207,9 @@
 - QA 基线已切换为已真实通过当前 validator 的 `QA Office evidence sequence 1789995823154`，ZIP SHA-256：`5d5ac0d08f4d91c9b551a927f871e71989b9f7fabc2cf9056b223846e8d914ec`。
 - `test/production-fullflow-ui.spec.ts` 的 validator 调用现在保留 stdout/stderr；validator 失败会显示完整 REWORK 项，不再只显示无诊断的 `Command failed`。
 - 该缺陷说明交付包需要携带 validator revision/质量策略版本，不能只依赖 `PACKAGED` 状态和旧 manifest 数量；历史包清理/受控返工仍是后续 P1 工作，未完成前不扩大为全量自动拒绝。
+
+### 打包验证无限等待回归
+
+同一条泛化 QA 任务 `ea17466c-7274-47cf-8df1-839de2938239` 在 15 阶段全部通过后进入 `PACKAGING`，第一次打包触发了 retry，第二次在 45 分钟 QA 窗口内仍未返回，任务保持 `PACKAGING / retry_count=1`。这不是 PASS，也不是可接受的“继续运行”：它暴露了 CADCore Golden-121 validator 调用没有总时限的 P1 缺陷。
+
+已在 `src/cadcore.ts` 为 validator sandbox command 增加 300 秒硬超时。超时会回到现有 `WORKFLOW_EXECUTION_ERROR` 自动重试/终态 FAILED 逻辑，不再允许打包调用无限占住任务。部署后必须重新跑一条泛化任务，证明超时能按边界收口；本条旧任务的悬挂状态仍需单独受控清理，不能改写成 PASS。

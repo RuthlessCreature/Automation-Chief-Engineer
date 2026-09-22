@@ -196,7 +196,11 @@ export async function validateGoldenDeliveryZip(env: Env, taskId: string, zipByt
   await sandbox.writeFile(zipPath, stream);
   const execution = await sandbox.exec(
     `python3 /opt/cadcore/validate_r2_f10_golden_delivery.py ${zipPath}`,
-    { cwd: workspace },
+    // Golden-121 is intentionally strict, but it must still have a bounded
+    // execution window. Without this limit a sandbox/container transport
+    // stall can leave the Workflow in PACKAGING indefinitely and prevent the
+    // bounded retry policy from ever reaching FAILED.
+    { cwd: workspace, timeout: 300_000 },
   );
   if (!execution.success) {
     const diagnostics = [execution.stdout, execution.stderr, `exitCode=${execution.exitCode}`]
