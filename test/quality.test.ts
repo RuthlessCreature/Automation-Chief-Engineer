@@ -69,6 +69,15 @@ describe("independent candidate quality gate", () => {
     expect(decision).toEqual({ pass: false, reasons: ["G04 missing stage deliverable signals: 光源"] });
   });
 
+  it("accepts equivalent G00 task-traceability wording without requiring one exact phrase", () => {
+    const body = ("本阶段形成输入完整性快照和任务追溯记录。任务追溯包括工单编号、来源、上游输入和下游交接。缺失项登记按责任阶段列出待验证数据及关闭条件。 ").repeat(12);
+    const decision = evaluateCandidate({
+      id: "intake-trace", taskId: "task", stageId: "intake", title: "输入受理记录", provider: "fixture", model: "fixture-v1",
+      body, evidence: ["INPUT-task-prompt", "RULE-G00"],
+    });
+    expect(decision).toEqual({ pass: true });
+  });
+
   it("rejects a generic long paragraph that does not implement the stage contract", () => {
     const decision = evaluateCandidate({
       id: "a", taskId: "task", stageId: "electrical", title: "电控方案", provider: "minimax", model: "m3",
