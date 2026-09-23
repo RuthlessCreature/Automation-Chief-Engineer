@@ -142,3 +142,9 @@ The initial implementation supersedes the historical “NOT_IMPLEMENTED” statu
 # Runtime build addendum — 2026-09-18
 
 The Worker now builds and deploys the STL CADCore runner, safe preview routes, Golden Comparator, Stage Harness, retry audit schema, fault-injection drill guard, MiniMax think/Markdown JSON normalization, Customer Delivery download panel, and Playwright regression harness. Deployment evidence: Worker version `49aa4612-5bd2-47e8-9f02-58a1043f0136`; remote D1 migrations `0006_quality_cad_retry.sql`, `0007_fault_injection_drill.sql`, and `0008_retry_run_isolation.sql` applied. This deployment also adds the stage-specific delivery-contract policy, full-rebuild rework isolation, explicit-assumption placeholder normalization, a 120-second bounded MiniMax wait, failed-task manual rework, automatic CADCore preparation at workflow start, and fail-closed ZIP assembly. The original static-only result below remains historical.
+
+### V8 generic unresolved-choice / CAD-unit prompt hardening — 2026-09-24
+
+- A live 5015 production run using Worker `3bd813a5-54d9-4060-bb52-d5e75bda2c8b` reached G05 after G00/G01/G03/G04 accepted; G05 correctly exhausted three quality attempts and blocked on fabricated physical dimensions with CAD units unconfirmed.
+- Accepted G04 review exposed unresolved `N`/“任选其一” placeholders despite stage-contract passage. Local V8 adds deterministic rejection for unresolved design variables/selections and a stronger unconfirmed-unit constraint in the prompt covering unsupported standard component dimensions/specifications.
+- Regression tests added for both the unresolved-choice gate and prompt constraint. Full suite, dry-run, deployment and same-task rework have not yet been run for V8.

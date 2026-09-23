@@ -24,6 +24,8 @@ describe("independent candidate quality gate", () => {
   it("rejects deferred fill-in language that evades literal TBD checks", () => {
     expect(findUnresolvedPlaceholders("文件哈希留待归档阶段生成后回填；责任人稍后补充。"))
       .toContain("未完成的回填占位");
+    expect(findUnresolvedPlaceholders("ROI 数量 N 待算法阶段结合面分组确定；触发源在按钮和脚踏中任选其一。"))
+      .toContain("未闭环的变量或方案选择");
   });
 
   it("rejects fabricated FAT and trial-performance results unless explicitly bounded", () => {

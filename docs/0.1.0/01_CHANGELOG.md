@@ -42,6 +42,7 @@
 - G01 artifact review exposed another false positive: risk identifiers such as `R1-...` matched the unconfirmed CAD radius detector. The unit pattern now distinguishes risk IDs from true `R5` radius callouts, covered by positive/negative tests; production retest is pending.
 - After deployment, G00/G01 passed and G03 blocked on unsupported CAD dimensions/evidence, with a final text fallback leaking MiniMax `<think>` content. The structured-text fallback now strips tagged think/analysis blocks before creating a candidate; focused regression passed, production retest pending.
 - The next live run reached G01 after an automatic workflow retry, but the task stayed blocked on an unqualified metric and repeated transport/debug-tag candidates. Tagged reasoning embedded inside JSON fields is now sanitized before the independent gate, with a regression proving the final text remains; local-only pending production replay.
+- The next deployed run accepted G00/G01/G03/G04 only after multiple rejected candidates, then correctly blocked G05 after three attempts because of unsupported physical dimensions. Review of accepted G04 also found unresolved `N` ROI count and “任选其一” design choices. V8 adds a hard unresolved-choice gate and an additional model instruction banning unsupported standard dimensions/specifications when CAD units are unconfirmed; local-only until verification. No customer ZIP was assembled or accepted.
 
 ## Removed
 

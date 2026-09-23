@@ -186,3 +186,11 @@ Disposition: the latest production task is blocked in G01. The numeric requireme
 - G01 candidates included an unqualified performance metric and two candidates rejected for transport/debug content. Since the transport/debug gate rejects `<think>`, raw hidden reasoning is not accepted or packaged.
 - Local follow-up strips explicitly tagged embedded think/analysis blocks inside parsed JSON title/body/evidence fields, retaining trailing final-answer text; it does not strip plain `analysis:` text or waive any substantive quality findings. Regression plus focused quality/harness/input dossier/MiniMax suites: 26/26 PASS; tsc/types/diff-check PASS.
 - Full suite, dry run, deployment and same-task rework for this field-level sanitizer: NOT RUN. Current deployed task is terminal `QUALITY_BLOCKED`; no ZIP approval or quality acceptance exists.
+
+### V7 embedded-thought sanitizer production probe and V8 follow-up — 2026-09-24
+
+- Worker `3bd813a5-54d9-4060-bb52-d5e75bda2c8b` was deployed with embedded `<think>/<analysis>` sanitization. The same 5015 task restarted; G00, G01, G03 and G04 were accepted, but only after repeated rejected candidates including unconfirmed-unit dimensions and malformed/debug content.
+- Review of accepted G01/G04 showed the deterministic contract remained too shallow: it accepted unsourced engineering targets when framed as assumptions, an unresolved `N` ROI count, and alternatives left as “任选其一”. This is evidence of quality-gate false acceptance, not Golden Sample parity.
+- The run stopped at G05 with `QUALITY_BLOCKED` after all three candidate attempts were rejected. Rejections included a raw model wrapper, unqualified performance claims, and fabricated physical dimensions/specifications (for example, mounting-grid, fixture and connector sizes) despite `unitStatus=UNCONFIRMED`. The gate did not release G05 or any ZIP.
+- Local V8 follow-up adds explicit unresolved variable/choice detection and appends a stricter prompt contract whenever CAD units are unconfirmed. New regression cases cover `N 待...`, “任选其一”, and the stronger harness prompt. This patch is not yet deployed or production-retested.
+- Current task disposition: `QUALITY_BLOCKED` at G05; no customer ZIP, no quality PASS, and no parity claim. Full suite/deploy/rework results for V8 are pending.

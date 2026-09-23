@@ -51,6 +51,9 @@ export async function runStageHarness(input: {
   const maxAttempts = Math.max(1, Math.min(MAX_STAGE_HARNESS_ATTEMPTS, input.maxAttempts ?? MAX_STAGE_HARNESS_ATTEMPTS));
   let feedback: string[] = [];
   let lastReasons: string[] = ["stage candidate was not accepted"];
+  const governedPrompt = input.unconfirmedCadUnits
+    ? `${input.prompt}\n\nCAD 单位受控补充约束（必须遵守）：输入 CAD/STEP 单位为 UNCONFIRMED。只可复述已验证的拓扑计数，不得提供任何 CAD 派生长度、孔径、螺纹、坐标、包络、焦距、工作距离、像素当量或夹具配合尺寸。也不得用“待验证”“假设”或“示例”作掩护保留这些数字。不得自行补充任何无来源的标准件尺寸、安装网格、气压/电压/速度、采集帧数、机柜尺寸或器件规格；仅当该精确值出现在用户输入或可核验规则中时才可使用。无法定尺寸时交付定性的结构与选型原则，不得留下 N/X、任选其一、二选一等未闭环变量/选择。`
+    : input.prompt;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     await input.onAttempt?.({ attempt, maxAttempts, phase: "GENERATING" });
@@ -62,7 +65,7 @@ export async function runStageHarness(input: {
       try {
         candidate = await input.provider.generateCandidate({
           taskId: input.taskId,
-          prompt: input.prompt,
+          prompt: governedPrompt,
           stage: input.stage,
           attempt,
           feedback: providerFeedback,

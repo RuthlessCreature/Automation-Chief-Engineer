@@ -89,6 +89,28 @@ describe("stage harness", () => {
     expect(rejected.every((item) => item.body.includes("待定"))).toBe(true);
   });
 
+  it("adds fail-closed dimensional constraints whenever CAD units are unconfirmed", async () => {
+    let seenPrompt = "";
+    const provider: ModelProvider = {
+      name: "fixture",
+      async generateCandidate(input) {
+        seenPrompt = input.prompt;
+        return candidate(validBody, input.attempt ?? 1);
+      },
+    };
+    const result = await runStageHarness({
+      provider,
+      taskId: "task-harness",
+      prompt: "基于未确认单位的 STEP 资料形成受控方案。",
+      stage,
+      unconfirmedCadUnits: true,
+    });
+    expect(result.status).toBe("ACCEPTED");
+    expect(seenPrompt).toContain("CAD 单位受控补充约束");
+    expect(seenPrompt).toContain("不得自行补充任何无来源的标准件尺寸");
+    expect(seenPrompt).toContain("不得留下 N/X");
+  });
+
   it("retries provider-format failures without spending the quality repair budget", async () => {
     let calls = 0;
     const phases: string[] = [];
