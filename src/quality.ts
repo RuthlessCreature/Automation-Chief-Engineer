@@ -4,7 +4,7 @@ export type QualityDecision = { pass: true } | { pass: false; reasons: readonly 
 
 export const UNRESOLVED_PLACEHOLDER_PATTERN = /(?:\bTBD\b|\bTODO\b|\bN\/A\b|待定|待补充|待填写|待回填|留待.{0,16}(?:回填|归档|生成|补充)|(?:后续|稍后).{0,10}(?:补充|回填|填写))/i;
 export const REASONING_LEAK_PATTERN = /<\/?think>|(?:^|\n)\s*(?:analysis|reasoning|思考过程)\s*:/i;
-export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V10-GATE-ID-DIMENSION-GUARD";
+export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V11-TEST-DISCLAIMER-GUARD";
 
 const UNSUPPORTED_COMPLETION_PATTERN = /(?:已|已经)(?:验证|测试|实测|签核|归档|出图|报价|归集|定义|写入|关闭|测得|证明|核对)|(?:已|已经)完成.{0,12}(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试|实测|测量|签核)|(?:已|已经)通过.{0,10}(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试)|(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试).{0,8}(?:已|已经)通过/i;
 // Quantitative claims must carry an engineering unit. Without that requirement,
@@ -57,7 +57,7 @@ export function findUnsupportedClaims(body: string): string[] {
   const sentences = body.split(/(?<=[。！？!?；;\n])\s*/);
   const reasons = new Set<string>();
   for (const sentence of sentences) {
-    const negatedOrPlanned = /(?:未执行|未完成|未验证|未测试|未实测|尚未|不得|不能|不应|不构成|不代表|不属于|不视为|不输出|不出具|并非|禁止|计划|规划|假设|示例|建议|假装)/i.test(sentence);
+    const negatedOrPlanned = /(?:未执行|未完成|未验证|未测试|未实测|尚未|不得|不能|不应|不构成|不代表|不属于|不视为|不预设|不输出|不出具|并非|禁止|计划|规划|假设|示例|建议|假装)/i.test(sentence);
     if (UNSUPPORTED_COMPLETION_PATTERN.test(sentence) && !negatedOrPlanned) reasons.add("unsupported completed-test claim detected");
     const withoutGateIds = sentence.replace(/\b(?:G\d{2}(?:\/G?\d{2})?|R-\d{2}|OI-\d{3})\b/g, "");
     if (UNSUPPORTED_METRIC_PATTERN.test(withoutGateIds) && !QUALIFIED_METRIC_CONTEXT.test(sentence)) reasons.add("quantitative performance claim lacks an assumption or evidence qualifier");

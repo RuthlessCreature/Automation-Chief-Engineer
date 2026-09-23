@@ -46,6 +46,7 @@
 - V8 same-task rework revalidated G00, then blocked in G01: the three candidates respectively violated CAD-unit constraints, missed the G01 structure, or omitted the required STEP input reference. Harness now places exact server-verified input IDs in a mandatory body/evidence instruction and includes specific feedback when one is missing. This is an in-progress generic traceability improvement, not a gate waiver.
 - Inspection of V8 G01 rejects found a conservative false positive: “本阶段不输出已完成的测试结论” was classified as a test-completion claim. V9 adds this explicit disclaimer form to the negative context and blocks unsupported numeric electrical/utility specifications such as an uncited `24V` interface value. The V8 input-ID prompt change remains; V9 is local pending tests and production rework.
 - V9 G01 inspection then identified an unconfirmed-unit false positive: the raw-dimension regex read `G02` in “尺寸闭环推迟至 G02 单位确认” as a physical coordinate. V10 strips only explicit stage identifiers before dimensional matching; actual unit-bearing dimensions remain protected. A negative fixture covers the exact phrase; awaiting release/retest.
+- V10 same-task rework confirmed the G02 stage-ID dimension false positive is gone, but G01 still blocked three candidates on the sentence “本阶段不预设任何已完成测试结论”; the detector lacked `不预设` as an explicit disclaimer. V11 adds this negative-context phrase with a regression; this is a detector correction, not a relaxation of completed-test rejection.
 
 ## Removed
 
