@@ -291,6 +291,13 @@ function stageContractInstructions(stage: PipelineStage): string {
 
 function parseStructuredTextCandidate(content: string, stage: PipelineStage): ParsedCandidate {
   const body = sanitizeModelContent(content).replace(/^```(?:markdown|md)?\s*/i, "").replace(/\s*```$/, "");
+  // An incomplete schema-shaped JSON response is transport noise, not a prose
+  // deliverable. Never wrap it as a candidate just because its fields mention
+  // engineering vocabulary; let the bounded provider-format retry fail closed.
+  if (/^\s*\{\s*["'](?:title|body|evidence)["']\s*:/i.test(body)
+    || /(?:^|\n)\s*["'](?:title|body|evidence)["']\s*:/i.test(body)) {
+    throw new Error("MINIMAX_NON_JSON_CANDIDATE");
+  }
   const hasEngineeringSignal = /检测|视觉|相机|光源|尺寸|节拍|BOM|PLC|MES|CAD|风险|验证|接口|流程|方案|文档|工程|测试|inspection|vision|camera|safety|validation/i.test(body);
   const refusal = /无法完成|不能完成|做不到|请提供更多|信息不足以|作为语言模型|抱歉|i\s*cannot|i'm\s*unable/i.test(body);
   const sentenceCount = (body.match(/[。.!?！？]/g) ?? []).length;

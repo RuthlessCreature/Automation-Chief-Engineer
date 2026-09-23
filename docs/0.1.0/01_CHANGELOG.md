@@ -53,6 +53,7 @@
 - V14 same-task production rework blocked at G00. Rejected-candidate review proved two narrow false positives: a version number embedded in a `RULE-...V14` identifier was treated as an industry metric, while `待验证` and a CADCore topology statement were read as completed testing. V15 strips governed reference IDs before numeric-default checks and scopes completion detection to test/performance claims while retaining positive FAT/real-test blockers. Retest on the same 5015 task is pending.
 
 - V15 same-task rework accepted G00 but blocked G01. The exact rejected text showed the CAD-unit regex matched the `M3` in a provider metadata line (`MiniMax-M3`), not an engineering thread callout. V16 excludes provider/model provenance lines from physical-dimension scanning while retaining detection of `M3` thread claims in actual design text; regression coverage added.
+- V16 same-task rework stopped at G01 after provider-format retries. The final response was an incomplete JSON object containing engineering prose; the existing fallback correctly did not pass it through the transport gate, but still created a rejected candidate artifact. V17 makes schema-shaped truncated JSON a provider-format failure before candidate construction and adds a regression; free-form engineering Markdown still uses the existing constrained fallback.
 
 ## Removed
 

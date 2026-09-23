@@ -172,3 +172,9 @@ The Worker now builds and deploys the STL CADCore runner, safe preview routes, G
 
 - V15 same-task rework passed G00, then G01 blocked because the unit regex interpreted the workflow metadata value `MiniMax-M3` as an M3 thread-size callout. The rejected candidate also ended with a truncated JSON transport body, which must remain rejected by the debug/structure boundary after this detector correction.
 - V16 excludes only dedicated provider/model metadata lines from geometry-dimension scanning. A paired regression asserts that `MiniMax-M3` metadata is ignored while an actual `M3` thread callout remains detected. Focused quality suite: 13/13 PASS; full suite: 64/64 PASS; TypeScript, Wrangler types, deploy dry-run, and diff check: PASS. Production deployment and same-task retest pending.
+
+### V17 malformed JSON transport boundary — 2026-09-24
+
+- The V16 G01 final candidate was a truncated schema-shaped JSON response. It was blocked, but the prose fallback still materialized a rejected artifact from that malformed envelope.
+- V17 rejects JSON-shaped fragments at the provider boundary before candidate construction; genuine prose fallback remains unchanged and still passes all independent gates. Regression covers a long, engineering-looking but unclosed JSON body.
+- V17 provider/quality tests: 22/22 PASS; full suite: 65/65 PASS; TypeScript: PASS; Wrangler types: PASS; dry-run: PASS; diff check: PASS. Deployment and same-task production replay pending.

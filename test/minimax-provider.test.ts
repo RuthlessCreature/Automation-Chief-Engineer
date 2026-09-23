@@ -36,6 +36,18 @@ describe("MiniMax OpenAI-compatible adapter", () => {
     })).rejects.toThrow("MINIMAX_NON_JSON_CANDIDATE");
   });
 
+  it("does not turn truncated JSON transport output into a prose candidate", async () => {
+    const truncated = `{"title":"需求工程交付","body":"${"本阶段覆盖功能需求、性能需求、接口需求、输入可追溯、风险和下一阶段工程交接。".repeat(12)}`;
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ choices: [{ message: { content: truncated } }] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ choices: [{ message: { content: truncated } }] }), { status: 200 })));
+    const provider = new MiniMaxCandidateProvider("https://api.minimax.cn/v1", "not-a-real-key", "MiniMax-M3");
+    await expect(provider.generateCandidate({
+      taskId: "task-1", prompt: "建立需求工程边界。",
+      stage: { id: "requirements", label: "需求工程", agent: "Requirement Engineer", gate: "G01" },
+    })).rejects.toThrow("MINIMAX_NON_JSON_CANDIDATE");
+  });
+
   it("accepts only a structurally complete prose fallback after JSON repair fails", async () => {
     const structured = ("范围：本阶段建立可审查的机械方案边界。输入：仅使用用户提示词，缺失尺寸与节拍均登记为待验证假设。假设：设备采用单通道手动上料，关键接口需要现场确认。风险：空间边界、节拍目标和安全等级尚未冻结，可能造成结构返工。下一阶段：将把确认后的接口、风险和验收条件交接给视觉与电控工程师，并保留版本哈希和责任人记录。交接：本候选不得替代现场勘查、工程签核或性能测试。 ").repeat(2);
     vi.stubGlobal("fetch", vi.fn()
