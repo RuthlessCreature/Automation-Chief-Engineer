@@ -65,6 +65,13 @@
 - 未开发、未部署、未绑定 `zg.gaona.world`，也未验证任何真实 MiniMax/GPT/Office 供应商能力。
 - 模型 API、GPT 审校许可与预算、认证/邮件、credits 定价、组织模型、文件保留与 Office 预览服务均待确认。
 - v2 视觉原型仅表达目标交互和状态合同，展示的示例任务/百分比/评分不是运行数据，也不构成已实现、已部署或已绑定域名的声明。
+
+### V19 fail-closed open-item acceptance — 2026-09-24
+
+- V18 same-task production rework accepted G03/G04 despite leaving alternatives such as `GigE或USB3 Vision` and work deferred to later stages. Root cause: `findUnresolvedPlaceholders()` existed, but `evaluateCandidate()` only called the literal TBD/TODO regex, so option/deferred-item findings never reached the independent acceptance Gate.
+- V19 wires the deterministic open-item scan into candidate acceptance, detects unresolved alternatives and deferrals such as “下一阶段确认/现场验证后定标”, and tells Harness to block instead of presenting missing inputs as accepted deliverables. This is a generic Gate correction, not a 5015 exception.
+- Production V18 run accepted G00–G04 then blocked at G05 after three candidates; candidates were rejected for unsourced engineering specifications and unconfirmed-unit physical dimensions. No ZIP was created or approved.
+- V19 verification: focused quality/Harness tests 21/21 PASS; full suite 66/66 PASS; TypeScript compile PASS; Wrangler types PASS; deploy dry-run PASS; diff check PASS. Production deploy and same-task rework remain pending.
 # Runtime completion update — 2026-09-18
 
 - Added production STL-to-BREP CADCore path with ASCII/Binary STL geometry facts and normalized BREP output.

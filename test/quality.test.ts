@@ -6,7 +6,7 @@ describe("independent candidate quality gate", () => {
   it("accepts a traceable, substantive candidate", () => {
     const decision = evaluateCandidate({
       id: "a", taskId: "task", stageId: "requirements", title: "需求基线", provider: "fixture", model: "fixture-v1",
-      body: ("这是一个可评审的需求工程方案候选。它明确列出功能需求、性能需求、接口需求、约束、假设、输入追溯、风险和下一阶段的交接内容。所有事实均需要继续验证，而不是假装已经验证。总工会依据输入资料和受控规则进行独立的质量检查，从而防止低质量模型用空泛表述蒙混过关。候选还说明输入不足时应当如何提出澄清、哪些指标必须由客户确认、以及哪些结论只能作为概念设计。这样审核人可以复核工程边界，也可以判断后续阶段是否具备安全的交接条件。对功能、性能、接口和版本约束均给出负责人、证据类型与验收动作，保证后续阶段能够按清单执行。 ").repeat(2),
+      body: ("这是一个可评审的需求工程方案候选。它明确列出功能需求、性能需求、接口需求、约束、假设、输入追溯、风险和阶段交接内容。总工依据输入资料和受控规则进行独立质量检查，防止低质量模型用空泛表述蒙混过关。候选说明如何识别输入不足、怎样提出有依据的澄清，以及哪些结论不属于当前已知事实。审核人可以复核工程边界和安全交接条件。对功能、性能、接口和版本约束均给出负责人、证据类型与验收动作。每一项需求都保留编号、原始输入、验证证据类型、决策责任和变更历史，便于逐项追溯。 ").repeat(2),
       evidence: ["INPUT-task-prompt", "RULE-G01"],
     });
     expect(decision).toEqual({ pass: true });
@@ -25,11 +25,25 @@ describe("independent candidate quality gate", () => {
     expect(findUnresolvedPlaceholders("文件哈希留待归档阶段生成后回填；责任人稍后补充。"))
       .toContain("未完成的回填占位");
     expect(findUnresolvedPlaceholders("ROI 数量 N 待算法阶段结合面分组确定；触发源在按钮和脚踏中任选其一。"))
-      .toContain("未闭环的变量或方案选择");
+      .toContain("未闭环的变量、方案选择或待办事项");
     expect(findUnresolvedPlaceholders("接口采用 GigE / USB3 Vision / CoaXPress 任一均可。"))
-      .toContain("未闭环的变量或方案选择");
+      .toContain("未闭环的变量、方案选择或待办事项");
     expect(findUnresolvedPlaceholders("光源在环形、同轴、背光等方式中选取。"))
-      .toContain("未闭环的变量或方案选择");
+      .toContain("未闭环的变量、方案选择或待办事项");
+    expect(findUnresolvedPlaceholders("数据接口以GigE或USB3 Vision为基线，待电气阶段确认。"))
+      .toContain("未闭环的变量、方案选择或待办事项");
+    expect(findUnresolvedPlaceholders("视觉方案后续由客户提供样件并在现场验证后定标。"))
+      .toContain("未闭环的变量、方案选择或待办事项");
+  });
+
+  it("runs open-item and unresolved-choice checks inside the independent acceptance Gate", () => {
+    const body = ("本阶段完成系统边界、可追溯输入、风险清单、接口基线和责任交接的实质性审查。 ").repeat(20)
+      + "数据接口以GigE或USB3 Vision为基线，待电气阶段确认；光源在环形、同轴中选取。";
+    const decision = evaluateCandidate({
+      id: "open-items", taskId: "task", stageId: "requirements", title: "需求基线", provider: "minimax", model: "m3",
+      body, evidence: ["INPUT-task-prompt", "RULE-G01"],
+    });
+    expect(decision).toEqual({ pass: false, reasons: expect.arrayContaining(["unresolved placeholder detected"]) });
   });
 
   it("rejects fabricated FAT and trial-performance results unless explicitly bounded", () => {
@@ -132,14 +146,14 @@ describe("independent candidate quality gate", () => {
     expect(stageContractLabels("vision")).toEqual(["缺陷目录", "相机", "镜头", "光源", "ROI"]);
     const decision = evaluateCandidate({
       id: "v", taskId: "task", stageId: "vision", title: "视觉方案", provider: "fixture", model: "fixture-v1",
-      body: ("缺陷目录覆盖漏贴、偏贴、皱褶与外观脏污；相机采用面阵方案，镜头依据视野和工作距离选型，ROI按工位区域分区并记录坐标。输入可追溯到任务提示，当前尺寸与速度均作为需客户确认的假设；风险包括反光、遮挡与运动模糊；下一阶段交接包括成像距离、触发接口、检测节拍和验证样本。 ").repeat(4),
+      body: ("缺陷目录覆盖漏贴、偏贴、皱褶与外观脏污；相机采用面阵方案，镜头依据视野和工作距离选型，ROI按工位区域分区并记录坐标。输入可追溯到任务提示，当前尺寸与速度按输入边界管理；风险包括反光、遮挡与运动模糊；阶段交接列出成像距离、触发接口、检测节拍和验证样本。 ").repeat(4),
       evidence: ["INPUT-task-prompt", "RULE-G04"],
     });
     expect(decision).toEqual({ pass: false, reasons: ["G04 missing stage deliverable signals: 光源"] });
   });
 
   it("accepts equivalent G00 task-traceability wording without requiring one exact phrase", () => {
-    const body = ("本阶段形成输入完整性快照和任务追溯记录。任务追溯包括工单编号、来源、上游输入和下游交接。缺失项登记按责任阶段列出待验证数据及关闭条件。 ").repeat(12);
+    const body = ("本阶段形成输入完整性快照和任务追溯记录。任务追溯包括工单编号、来源、上游输入和下游交接。缺失项登记列出来源、责任阶段和关闭条件。 ").repeat(12);
     const decision = evaluateCandidate({
       id: "intake-trace", taskId: "task", stageId: "intake", title: "输入受理记录", provider: "fixture", model: "fixture-v1",
       body, evidence: ["INPUT-task-prompt", "RULE-G00"],
@@ -180,7 +194,7 @@ describe("independent candidate quality gate", () => {
     expect(hasUnconfirmedCadUnits(["CONFIRMED", "UNCONFIRMED"])).toBe(true);
     expect(hasUnconfirmedCadUnits(["CONFIRMED", null])).toBe(true);
     expect(hasUnconfirmedCadUnits(["CONFIRMED", "CONFIRMED"])).toBe(false);
-    const body = ("功能需求、性能需求和接口需求均以输入边界、风险、责任人与下一阶段交接组织。 ").repeat(18)
+    const body = ("功能需求、性能需求和接口需求均以输入边界、风险、责任人与阶段交接组织。 ").repeat(18)
       + "STEP 单位未确认，但划痕阈值≥0.3mm。";
     const decision = evaluateCandidate({
       id: "unit-claim", taskId: "task", stageId: "requirements", title: "需求基线", provider: "minimax", model: "m3",
@@ -192,7 +206,7 @@ describe("independent candidate quality gate", () => {
 
     const assumedUnitDecision = evaluateCandidate({
       id: "unit-assumption", taskId: "task", stageId: "requirements", title: "需求基线",
-      body: ("功能需求、性能需求和接口需求均以输入边界、风险、责任人与下一阶段交接组织。 ").repeat(18)
+      body: ("功能需求、性能需求和接口需求均以输入边界、风险、责任人与阶段交接组织。 ").repeat(18)
         + "假设 STEP 文件单位为 mm，但 CADCore unitStatus=UNCONFIRMED。",
       evidence: ["INPUT-task-prompt", "RULE-G01"], provider: "minimax", model: "m3",
     }, [], true);
@@ -209,7 +223,7 @@ describe("independent candidate quality gate", () => {
 
     const defaultMetricDecision = evaluateCandidate({
       id: "unsourced-default", taskId: "task", stageId: "requirements", title: "需求基线",
-      body: ("功能需求、性能需求和接口需求均以输入边界、风险、责任人与下一阶段交接组织。 ").repeat(18)
+      body: ("功能需求、性能需求和接口需求均以输入边界、风险、责任人与阶段交接组织。 ").repeat(18)
         + "误判率按行业典型值取 0.1%，作为默认验收指标。",
       evidence: ["INPUT-task-prompt", "RULE-G01"], provider: "minimax", model: "m3",
     });
@@ -228,7 +242,7 @@ describe("independent candidate quality gate", () => {
   it("rejects a generic long paragraph that does not implement the stage contract", () => {
     const decision = evaluateCandidate({
       id: "a", taskId: "task", stageId: "electrical", title: "电控方案", provider: "minimax", model: "m3",
-      body: ("本阶段围绕设备方案边界、输入可追溯、假设、风险和下一阶段交接形成可审查说明。所有未确认信息均作为待验证假设登记，需由责任人补齐证据并完成验收。 ").repeat(8),
+      body: ("本阶段围绕设备方案边界、输入可追溯、假设、风险和阶段交接形成可审查说明。评审依据、责任分工和验收动作按可追溯条目归档。 ").repeat(8),
       evidence: ["INPUT-task-prompt", "RULE-G06"],
     });
     expect(decision).toEqual({ pass: false, reasons: expect.arrayContaining(["G06 missing stage deliverable signals: PLC, IO, 安全回路, EMC接地"]) });

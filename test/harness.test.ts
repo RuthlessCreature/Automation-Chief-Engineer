@@ -112,9 +112,10 @@ describe("stage harness", () => {
     expect(result.status).toBe("ACCEPTED");
     expect(seenPrompt).toContain("CAD 单位受控补充约束");
     expect(seenPrompt).toContain("不得自行补充任何无来源的标准件尺寸");
-    expect(seenPrompt).toContain("不得保留任一均可、任选其一、中选取、N/X");
+    expect(seenPrompt).toContain("不得提交可交付候选，应明确指出缺失输入并由质量门阻断任务");
     expect(seenPrompt).toContain("严禁选定 mm、inch 或任何其他单位");
-    expect(seenPrompt).toContain("不得保留任一均可、任选其一、中选取");
+    expect(seenPrompt).toContain("不得把问题推到下一阶段/用户确认/现场验证后处理");
+    expect(seenPrompt).toContain("明确指出缺失输入并由质量门阻断任务");
   });
 
   it("retries provider-format failures without spending the quality repair budget", async () => {

@@ -184,3 +184,9 @@ The Worker now builds and deploys the STL CADCore runner, safe preview routes, G
 - V17 production rework passed G00/G01, then blocked at G03 because the candidate asserted a millimeter-unit assumption while CADCore still reported `UNCONFIRMED`; it also gave unresolved interface/light/protocol alternatives as “任一均可 / 中选取”.
 - V18 explicitly forbids assigning mm/inch/any unit when the server reports `UNCONFIRMED`, gives exact repair feedback, and extends deterministic unresolved-option detection for “任一均可”, “任意一种”, and “中选取”. No CAD/unit or supplier quality Gate was relaxed.
 - Focused quality/Harness tests: 20/20 PASS; full suite: 65/65 PASS; TypeScript: PASS; Wrangler types: PASS; deploy dry-run: PASS; diff check: PASS. V18 deployment and same-task replay pending.
+
+### V19 follow-up — 2026-09-24
+
+- Production V18 same-task run: G00–G04 accepted; G05 blocked after three rejected attempts. Accepted G03/G04 text still contained unresolved choices/deferred work because the open-item helper was not wired into `evaluateCandidate()`.
+- V19 connects open-item findings to independent candidate acceptance and updates Harness instructions to stop on missing-input blockers instead of handing them forward as accepted text.
+- V19 local verification: focused quality/Harness tests 21/21 PASS; full suite 66/66 PASS; TypeScript compile PASS; Wrangler types PASS; deploy dry-run PASS; diff check PASS. Production deploy and same-task retest are pending. No ZIP or quality PASS is claimed.

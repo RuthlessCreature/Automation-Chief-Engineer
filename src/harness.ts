@@ -53,8 +53,8 @@ export async function runStageHarness(input: {
   let feedback: string[] = [];
   let lastReasons: string[] = ["stage candidate was not accepted"];
   const promptConstraints = [
-    input.unconfirmedCadUnits
-      ? "CAD 单位受控补充约束（必须遵守）：输入 CAD/STEP 单位为 UNCONFIRMED。只可复述已验证的拓扑计数，不得提供任何 CAD 派生长度、孔径、螺纹、坐标、包络、焦距、工作距离、像素当量或夹具配合尺寸。严禁选定 mm、inch 或任何其他单位；也不准以‘假设单位为 mm/inch’等措辞把未确认单位伪装成前提。只能如实标注 UNCONFIRMED，并停止所有依赖单位的尺寸结论。也不得用‘待验证’‘假设’或‘示例’作掩护保留被禁止的数值。不得自行补充任何无来源的标准件尺寸、安装网格、气压/电压/速度、采集帧数、机柜尺寸或器件规格；仅当该精确值出现在用户输入或可核验规则中时才可使用。无法定尺寸时交付定性的结构与选型原则；每个接口/器件必须给一个明确受控基线或明确阻断条件，不得保留任一均可、任选其一、中选取、N/X、二选一等未闭环变量/选择。"
+      input.unconfirmedCadUnits
+      ? "CAD 单位受控补充约束（必须遵守）：输入 CAD/STEP 单位为 UNCONFIRMED。只可复述已验证的拓扑计数，不得提供任何 CAD 派生长度、孔径、螺纹、坐标、包络、焦距、工作距离、像素当量或夹具配合尺寸。严禁选定 mm、inch 或任何其他单位；也不准以‘假设单位为 mm/inch’等措辞把未确认单位伪装成前提。只能如实标注 UNCONFIRMED，并停止所有依赖单位的尺寸结论。也不得用‘待验证’‘假设’或‘示例’作掩护保留被禁止的数值。不得自行补充任何无来源的标准件尺寸、安装网格、气压/电压/速度、采集帧数、机柜尺寸或器件规格；仅当该精确值出现在用户输入或可核验规则中时才可使用。无法定尺寸时不得提交可交付候选，应明确指出缺失输入并由质量门阻断任务；不得把问题推到下一阶段/用户确认/现场验证后处理。"
       : "",
     input.requiredEvidenceRefs?.length
       ? `必须逐字引用以下服务端核验的输入 ID：${input.requiredEvidenceRefs.join(", " )}。每个 ID 都要同时出现在 body 的“输入可追溯”段和 evidence 数组；若未引用任何一个，候选会被阻断。不得改写、缩写或猜测 ID。`
@@ -151,7 +151,7 @@ export async function runStageHarness(input: {
           ? `修复 BOM 商务溯源：仅可引用已核验的报价/采购来源 ${input.trustedQuoteEvidenceRefs.join(", ")}，逐句标出证据；删除无来源的供应商、型号、料号及金额。`
           : "修复 BOM 商务溯源：删除全部具名供应商、品牌、型号、料号、SKU 和具体金额/市场价，改为功能性物料类别及明确的未报价边界；不得将估算写成报价。"]
         : []),
-      "保留真实输入边界和待验证假设，但不得输出占位词或伪造已完成结论。",
+      "所有候选均由服务端独立扫描开放事项；删去待验证/待确认/由客户或现场确认/下一阶段闭环/任一选型/等效未闭环表述。只允许采用有输入证据的单一受控决策；如输入不足以决策，停止生成可交付候选并让 Gate 阻断任务。保留真实边界，但不得以免责声明、假设、风险项或下一阶段交接掩盖未闭环事项，也不得伪造已完成结论。",
     ];
     await input.onAttempt?.({ attempt, maxAttempts, phase: "REJECTED", reasons: lastReasons, candidate });
   }
