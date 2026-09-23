@@ -184,6 +184,7 @@ export class TaskWorkflow extends WorkflowEntrypoint<Env, TaskWorkflowParams> {
       const existing = await this.env.DB.prepare(
         "SELECT id, status, report_storage_key, normalized_brep_key, error_code FROM cad_jobs WHERE task_id = ? AND input_id = ? AND kind = ? ORDER BY created_at DESC LIMIT 1",
       ).bind(taskId, input.id, kind).first<CadJobRow>();
+      let regenerateLegacyStepReport = false;
       if (existing?.status === "SUCCEEDED") {
         if (isStl) { processed += 1; continue; }
         const existingReport = existing.report_storage_key ? await this.env.ARTIFACTS.get(existing.report_storage_key) : null;
@@ -197,18 +198,26 @@ export class TaskWorkflow extends WorkflowEntrypoint<Env, TaskWorkflowParams> {
           } catch { /* malformed/stale reports are regenerated below */ }
         }
         if (unitAwareStepReport) { processed += 1; continue; }
+        regenerateLegacyStepReport = true;
         // Regenerate legacy STEP reports that never inspected explicit LENGTH_UNIT
         // declarations. Otherwise a correct CADCore upgrade would still consume stale
-        // UNCONFIRMED metadata and block the same source file forever.
+        // UNCONFIRMED metadata and block the same source file forever. Reuse the unique
+        // job row; cad_jobs intentionally has one canonical inspection per input/kind.
       }
       if (existing?.status === "BLOCKED" || existing?.status === "RUNNING" || existing?.status === "QUEUED") {
         throw new Error(existing.error_code ?? `CADCORE_${existing.status}`);
       }
-      const jobId = crypto.randomUUID();
+      const jobId = regenerateLegacyStepReport && existing ? existing.id : crypto.randomUUID();
       const startedAt = isoNow();
-      await this.env.DB.prepare(
-        "INSERT INTO cad_jobs (id, task_id, input_id, kind, status, engine_json, created_at, started_at) VALUES (?, ?, ?, ?, 'RUNNING', ?, ?, ?)",
-      ).bind(jobId, taskId, input.id, kind, JSON.stringify({ runtime: "cadcore-runner", occt: "7.9.3.1.1", meshToBrep: isStl, automatic: true }), startedAt, startedAt).run();
+      if (regenerateLegacyStepReport) {
+        await this.env.DB.prepare(
+          "UPDATE cad_jobs SET status = 'RUNNING', report_storage_key = NULL, normalized_brep_key = NULL, error_code = NULL, engine_json = ?, started_at = ?, completed_at = NULL WHERE id = ? AND status = 'SUCCEEDED'",
+        ).bind(JSON.stringify({ runtime: "cadcore-runner", occt: "7.9.3.1.1", meshToBrep: false, automatic: true, unitParser: "cadcore-g02-0.1.1" }), startedAt, jobId).run();
+      } else {
+        await this.env.DB.prepare(
+          "INSERT INTO cad_jobs (id, task_id, input_id, kind, status, engine_json, created_at, started_at) VALUES (?, ?, ?, ?, 'RUNNING', ?, ?, ?)",
+        ).bind(jobId, taskId, input.id, kind, JSON.stringify({ runtime: "cadcore-runner", occt: "7.9.3.1.1", meshToBrep: isStl, automatic: true }), startedAt, startedAt).run();
+      }
       try {
         const result = await inspectCadInCadcore(this.env, { id: input.id, taskId, originalName: input.original_name, storageKey: input.storage_key, sha256: input.sha256 });
         await this.assertCurrentWorkflow(taskId, workflowInstanceId);

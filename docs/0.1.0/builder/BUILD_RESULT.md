@@ -195,4 +195,9 @@ The Worker now builds and deploys the STL CADCore runner, safe preview routes, G
 
 - Read-only retrieval of the same uploaded 5015 STEP source found 11 consistent explicit millimetre assignments; CADCore had ignored them and reported `UNCONFIRMED`.
 - CADCore now conservatively parses explicit unit declarations and keeps unknown/mixed/conversion-based cases blocked; workflow preflight regenerates legacy STEP reports without unit provenance.
-- Focused Python unit tests pass 3/3; full suite 66/66; TypeScript, Wrangler types, deploy dry-run, and diff check all pass. End-to-end CADCore inspection of the exact source reports `cadcore-g02-0.1.1`, `CONFIRMED / mm`, `shapeValid=true`, 4 solids, 397 faces, 2130 edges. V20 production deployment and same-task replay are pending.
+- Focused Python unit tests pass 3/3; full suite 66/66; TypeScript, Wrangler types, deploy dry-run, and diff check all pass. End-to-end CADCore inspection of the exact source reports `cadcore-g02-0.1.1`, `CONFIRMED / mm`, `shapeValid=true`, 4 solids, 397 faces, 2130 edges. V20 deployed as Worker `6bcf7801-52cb-4bef-8971-d1a40516a4e7`; same-task replay exposed a unique-job-row conflict before G00.
+
+### V21 recovery fix — 2026-09-24
+
+- Reuse the unique `cad_jobs` row when refreshing a legacy STEP inspection; clear stale keys and mark the row running before calling CADCore. This avoids inserting a duplicate for the same task/input/kind.
+- V21 local verification: Python unit tests 3/3; full suite 66/66; TypeScript/Wrangler types/deploy dry-run/diff check PASS. Production deployment and same-task replay pending. No quality pass or ZIP is claimed.

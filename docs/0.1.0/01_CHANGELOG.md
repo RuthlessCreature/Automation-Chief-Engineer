@@ -77,7 +77,13 @@
 
 - The V19 rework correctly blocked G00 because the existing CADCore report said `UNCONFIRMED`, but manual read-only inspection of the exact uploaded STEP found 11 consistent `LENGTH_UNIT / SI_UNIT(.MILLI., .METRE.)` declarations. The source file explicitly identifies the model as `Radial-Cooling-Fan-5015-DC12V.STEP`.
 - V20 teaches CADCore to confirm only consistent, supported SI metre assignments; absent, mixed, conversion-based, or unsupported declarations remain `UNCONFIRMED`. It also regenerates legacy STEP reports missing unit-analysis provenance, so the stale V0.1.0 report cannot block this same input forever.
-- The same 5015 task is `QUALITY_BLOCKED` at G00 after V19 rejected three unresolved-intake candidates. V20 focused Python unit tests pass 3/3; full suite 66/66; TypeScript, Wrangler types, deploy dry-run and diff check pass. A local CADCore run on the exact upload reports `cadcore-g02-0.1.1`, `CONFIRMED / mm`, `shapeValid=true`, 4 solids, 397 faces and 2130 edges. V20 production deploy/rework remain pending.
+- The same 5015 task was `QUALITY_BLOCKED` at G00 after V19 rejected three unresolved-intake candidates. V20 focused Python unit tests pass 3/3; full suite 66/66; TypeScript, Wrangler types, deploy dry-run and diff check pass. A local CADCore run on the exact upload reports `cadcore-g02-0.1.1`, `CONFIRMED / mm`, `shapeValid=true`, 4 solids, 397 faces and 2130 edges.
+
+### V21 reuse canonical CAD job on legacy STEP refresh — 2026-09-24
+
+- V20 deployment succeeded, but the same-task replay and both automatic retries failed before G00 because `cad_jobs` has a unique `(task_id, input_id, kind)` constraint. The legacy-report refresh path incorrectly attempted to insert a second job for the same STEP input.
+- V21 refreshes the unique canonical job row in place, clears stale report keys, and records the unit parser version before reinspection. No legacy measurement is trusted and no quality Gate is relaxed.
+- V21 verification: Python unit tests 3/3, full suite 66/66, TypeScript/Wrangler types, deploy dry-run and diff check PASS. The same task is FAILED with no credits charged and may be safely reworked; V21 deploy/replay remain pending.
 # Runtime completion update — 2026-09-18
 
 - Added production STL-to-BREP CADCore path with ASCII/Binary STL geometry facts and normalized BREP output.
