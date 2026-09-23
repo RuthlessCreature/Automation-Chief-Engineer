@@ -4,7 +4,7 @@ export type QualityDecision = { pass: true } | { pass: false; reasons: readonly 
 
 export const UNRESOLVED_PLACEHOLDER_PATTERN = /(?:\bTBD\b|\bTODO\b|\bN\/A\b|待定|待补充|待填写|待回填|留待.{0,16}(?:回填|归档|生成|补充)|(?:后续|稍后).{0,10}(?:补充|回填|填写))/i;
 export const REASONING_LEAK_PATTERN = /<\/?think>|(?:^|\n)\s*(?:analysis|reasoning|思考过程)\s*:/i;
-export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V9-TRACEABLE-ENGINEERING-SPECS";
+export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V10-GATE-ID-DIMENSION-GUARD";
 
 const UNSUPPORTED_COMPLETION_PATTERN = /(?:已|已经)(?:验证|测试|实测|签核|归档|出图|报价|归集|定义|写入|关闭|测得|证明|核对)|(?:已|已经)完成.{0,12}(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试|实测|测量|签核)|(?:已|已经)通过.{0,10}(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试)|(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试).{0,8}(?:已|已经)通过/i;
 // Quantitative claims must carry an engineering unit. Without that requirement,
@@ -93,9 +93,12 @@ export function evaluateCandidate(candidate: CandidateArtifact, requiredEvidence
 
 export function findUnconfirmedUnitClaims(body: string): string[] {
   const claims = body.split(/(?<=[。！？!?；;\n])\s*/);
-  return claims.filter((sentence) => UNIT_BEARING_MEASUREMENT_PATTERN.test(sentence)
-    || RAW_COORDINATE_DIMENSION_PATTERN.test(sentence)
-    || UNCONFIRMED_UNIT_ASSUMPTION_PATTERN.test(sentence));
+  return claims.filter((sentence) => {
+    const withoutStageIds = sentence.replace(/\bG\d{2}(?:\/G?\d{2})?\b/g, "GATE-ID");
+    return UNIT_BEARING_MEASUREMENT_PATTERN.test(withoutStageIds)
+      || RAW_COORDINATE_DIMENSION_PATTERN.test(withoutStageIds)
+      || UNCONFIRMED_UNIT_ASSUMPTION_PATTERN.test(withoutStageIds);
+  });
 }
 
 export function hasUnconfirmedCadUnits(unitStatuses: readonly (string | null | undefined)[]): boolean {

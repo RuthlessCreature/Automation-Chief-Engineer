@@ -121,6 +121,8 @@ describe("independent candidate quality gate", () => {
       .toHaveLength(1);
     expect(findUnconfirmedUnitClaims("G04 进度 15/15；CADCore 确认 4 solids、397 faces、2130 edges。"))
       .toEqual([]);
+    expect(findUnconfirmedUnitClaims("缓解：将尺寸闭环推迟至 G02 单位确认后。"))
+      .toEqual([]);
     expect(hasUnconfirmedCadUnits([])).toBe(false);
     expect(hasUnconfirmedCadUnits(["CONFIRMED", "UNCONFIRMED"])).toBe(true);
     expect(hasUnconfirmedCadUnits(["CONFIRMED", null])).toBe(true);
