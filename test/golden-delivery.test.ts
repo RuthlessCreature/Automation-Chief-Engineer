@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PIPELINE } from "../src/domain";
-import { GOLDEN_VALIDATOR_SANDBOX_OPTIONS, GOLDEN_VALIDATOR_TIMEOUT_MS } from "../src/cadcore";
+import { GOLDEN_VALIDATOR_SANDBOX_OPTIONS, GOLDEN_VALIDATOR_TIMEOUT_MS, readOptionalCadView } from "../src/cadcore";
 import { GOLDEN_SHEETS, docx, docxForDelivery, envelope, geometryViews, geometryVisuals, openCsv, pdf, png, pptx, views, visuals, xlsx, type Report } from "../src/golden-delivery";
 import { noProductCadEvidence } from "../src/golden-package";
 import { pdfForDelivery } from "../src/pdf-delivery";
@@ -61,6 +61,13 @@ describe("Golden-121 deterministic assets", () => {
   it("keeps the long-running Golden-121 validator sandbox alive with a bounded command timeout", () => {
     expect(GOLDEN_VALIDATOR_SANDBOX_OPTIONS).toMatchObject({ keepAlive: true, normalizeId: true, transport: "rpc" });
     expect(GOLDEN_VALIDATOR_TIMEOUT_MS).toBe(300_000);
+  });
+
+  it("falls back to STL-derived views when generic CADCore output has no rendered cutaway", async () => {
+    const sandbox = {
+      readFile: async () => { throw new Error("FileNotFoundError: cutaway.png"); },
+    } as unknown as Parameters<typeof readOptionalCadView>[0];
+    await expect(readOptionalCadView(sandbox, "/workspace/cad/concept/r01/views/cutaway.png")).resolves.toBeNull();
   });
 
   it("uses the mechanical golden FCT envelope when no dimensions are supplied", () => {

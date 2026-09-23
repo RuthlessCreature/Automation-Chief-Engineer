@@ -104,6 +104,21 @@ export type CadDeliveryAssetKeys = {
   viewKeys?: Record<string, string>;
 };
 
+/** Read an optional view from CADCore without making generic CAD delivery depend on a named rendering. */
+export async function readOptionalCadView(
+  sandbox: Pick<ReturnType<typeof getSandbox>, "readFile">,
+  path: string,
+): Promise<string | null> {
+  try {
+    const file = await sandbox.readFile(path, { encoding: "base64" });
+    return file.success && file.content ? file.content : null;
+  } catch {
+    // Generic parametric CAD does not create rendered views inside CADCore;
+    // the package derives its 2D views from the generated STL instead.
+    return null;
+  }
+}
+
 async function readSandboxBinary(sandbox: ReturnType<typeof getSandbox>, path: string): Promise<ArrayBuffer> {
   const file = await sandbox.readFile(path, { encoding: "base64" });
   if (!file.success || !file.content) throw new Error("CADCORE_DELIVERY_OUTPUT_UNAVAILABLE");
@@ -174,9 +189,9 @@ export async function buildConceptCadAssets(
   const viewKeys: Record<string, string> = {};
   for (const name of ["cutaway", "front", "isometric", "right", "top"]) {
     const sourcePath = `${viewDir}/${name}.png`;
-    const file = await sandbox.readFile(sourcePath, { encoding: "base64" });
-    if (!file.success || !file.content) continue;
-    const bytes = base64ToArrayBuffer(file.content);
+    const content = await readOptionalCadView(sandbox, sourcePath);
+    if (!content) continue;
+    const bytes = base64ToArrayBuffer(content);
     const key = `${root}/views/${name}.png`;
     await env.ARTIFACTS.put(key, bytes, { httpMetadata: { contentType: "image/png" }, customMetadata: { taskId, profile, maturity: "ASM_NOT_VERIFIED" } });
     viewKeys[name] = key;
