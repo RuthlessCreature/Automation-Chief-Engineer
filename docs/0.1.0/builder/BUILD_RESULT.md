@@ -152,3 +152,4 @@ The Worker now builds and deploys the STL CADCore runner, safe preview routes, G
 - V9 follow-up corrects the false-positive “本阶段不输出已完成的测试结论” case and adds a gate for unsupported quantified electrical/utility specifications. Tests pass 62/62; deployment and same-task rework pending.
 - V10 fixes the next observed false positive: stage ID `G02` adjacent to “尺寸/单位” was interpreted as a physical dimension. The unit detector now strips only exact G-stage identifiers before measurement checks. New regression added; pending checks and production retest.
 - V10 production rework exposed another false positive: `不预设任何已完成测试结论` lacked a recognized disclaimer token. V11 adds `不预设`; only negative-context handling changes. Regression and release pending.
+- V11 production rework moved through G01 and G03; G04 then hit the sibling disclaimer form `未输出任何 ... 已完成测试结论`. V12 adds `未输出` with a negative regression; awaiting full verification/release.
