@@ -184,7 +184,23 @@ export class TaskWorkflow extends WorkflowEntrypoint<Env, TaskWorkflowParams> {
       const existing = await this.env.DB.prepare(
         "SELECT id, status, report_storage_key, normalized_brep_key, error_code FROM cad_jobs WHERE task_id = ? AND input_id = ? AND kind = ? ORDER BY created_at DESC LIMIT 1",
       ).bind(taskId, input.id, kind).first<CadJobRow>();
-      if (existing?.status === "SUCCEEDED") { processed += 1; continue; }
+      if (existing?.status === "SUCCEEDED") {
+        if (isStl) { processed += 1; continue; }
+        const existingReport = existing.report_storage_key ? await this.env.ARTIFACTS.get(existing.report_storage_key) : null;
+        let unitAwareStepReport = false;
+        if (existingReport) {
+          try {
+            const report = await existingReport.json<Record<string, unknown>>();
+            const step = report.step && typeof report.step === "object" ? report.step as Record<string, unknown> : {};
+            const lengthUnit = step.lengthUnit && typeof step.lengthUnit === "object" ? step.lengthUnit as Record<string, unknown> : {};
+            unitAwareStepReport = typeof lengthUnit.unitStatus === "string" && typeof lengthUnit.declarationCount === "number";
+          } catch { /* malformed/stale reports are regenerated below */ }
+        }
+        if (unitAwareStepReport) { processed += 1; continue; }
+        // Regenerate legacy STEP reports that never inspected explicit LENGTH_UNIT
+        // declarations. Otherwise a correct CADCore upgrade would still consume stale
+        // UNCONFIRMED metadata and block the same source file forever.
+      }
       if (existing?.status === "BLOCKED" || existing?.status === "RUNNING" || existing?.status === "QUEUED") {
         throw new Error(existing.error_code ?? `CADCORE_${existing.status}`);
       }

@@ -190,3 +190,9 @@ The Worker now builds and deploys the STL CADCore runner, safe preview routes, G
 - Production V18 same-task run: G00–G04 accepted; G05 blocked after three rejected attempts. Accepted G03/G04 text still contained unresolved choices/deferred work because the open-item helper was not wired into `evaluateCandidate()`.
 - V19 connects open-item findings to independent candidate acceptance and updates Harness instructions to stop on missing-input blockers instead of handing them forward as accepted text.
 - V19 local verification: focused quality/Harness tests 21/21 PASS; full suite 66/66 PASS; TypeScript compile PASS; Wrangler types PASS; deploy dry-run PASS; diff check PASS. Production deploy and same-task retest are pending. No ZIP or quality PASS is claimed.
+
+### V20 source-authoritative STEP units — 2026-09-24
+
+- Read-only retrieval of the same uploaded 5015 STEP source found 11 consistent explicit millimetre assignments; CADCore had ignored them and reported `UNCONFIRMED`.
+- CADCore now conservatively parses explicit unit declarations and keeps unknown/mixed/conversion-based cases blocked; workflow preflight regenerates legacy STEP reports without unit provenance.
+- Focused Python unit tests pass 3/3; full suite 66/66; TypeScript, Wrangler types, deploy dry-run, and diff check all pass. End-to-end CADCore inspection of the exact source reports `cadcore-g02-0.1.1`, `CONFIRMED / mm`, `shapeValid=true`, 4 solids, 397 faces, 2130 edges. V20 production deployment and same-task replay are pending.

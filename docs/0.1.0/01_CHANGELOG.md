@@ -72,6 +72,12 @@
 - V19 wires the deterministic open-item scan into candidate acceptance, detects unresolved alternatives and deferrals such as “下一阶段确认/现场验证后定标”, and tells Harness to block instead of presenting missing inputs as accepted deliverables. This is a generic Gate correction, not a 5015 exception.
 - Production V18 run accepted G00–G04 then blocked at G05 after three candidates; candidates were rejected for unsourced engineering specifications and unconfirmed-unit physical dimensions. No ZIP was created or approved.
 - V19 verification: focused quality/Harness tests 21/21 PASS; full suite 66/66 PASS; TypeScript compile PASS; Wrangler types PASS; deploy dry-run PASS; diff check PASS. Production deploy and same-task rework remain pending.
+
+### V20 source-authoritative STEP units — 2026-09-24
+
+- The V19 rework correctly blocked G00 because the existing CADCore report said `UNCONFIRMED`, but manual read-only inspection of the exact uploaded STEP found 11 consistent `LENGTH_UNIT / SI_UNIT(.MILLI., .METRE.)` declarations. The source file explicitly identifies the model as `Radial-Cooling-Fan-5015-DC12V.STEP`.
+- V20 teaches CADCore to confirm only consistent, supported SI metre assignments; absent, mixed, conversion-based, or unsupported declarations remain `UNCONFIRMED`. It also regenerates legacy STEP reports missing unit-analysis provenance, so the stale V0.1.0 report cannot block this same input forever.
+- The same 5015 task is `QUALITY_BLOCKED` at G00 after V19 rejected three unresolved-intake candidates. V20 focused Python unit tests pass 3/3; full suite 66/66; TypeScript, Wrangler types, deploy dry-run and diff check pass. A local CADCore run on the exact upload reports `cadcore-g02-0.1.1`, `CONFIRMED / mm`, `shapeValid=true`, 4 solids, 397 faces and 2130 edges. V20 production deploy/rework remain pending.
 # Runtime completion update — 2026-09-18
 
 - Added production STL-to-BREP CADCore path with ASCII/Binary STL geometry facts and normalized BREP output.

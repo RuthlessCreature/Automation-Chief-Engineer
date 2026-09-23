@@ -28,8 +28,10 @@ from OCP.TopExp import TopExp_Explorer
 from OCP.TopoDS import TopoDS_Compound
 from OCP.gp import gp_Pnt
 
+from step_units import detect_step_length_unit
 
-SCHEMA_VERSION = "cadcore-g02-0.1.0"
+
+SCHEMA_VERSION = "cadcore-g02-0.1.1"
 OCCT_BINDING_VERSION = "cadquery-ocp-novtk==7.9.3.1.1"
 MAX_FACETED_POINTS = 250_000
 MAX_FACETED_TRIANGLES = 250_000
@@ -126,6 +128,7 @@ def inspect(path: Path, normalized_brep: Path) -> dict:
     header = source_header(path)
     if "ISO-10303" not in header.upper():
         raise ValueError("STEP_HEADER_MISSING")
+    unit_info = detect_step_length_unit(path.read_text(encoding="utf-8", errors="ignore"))
 
     reader = STEPControl_Reader()
     read_status = reader.ReadFile(str(path))
@@ -163,7 +166,8 @@ def inspect(path: Path, normalized_brep: Path) -> dict:
             "min": [xmin, ymin, zmin],
             "max": [xmax, ymax, zmax],
             "size": [xmax - xmin, ymax - ymin, zmax - zmin],
-            "unitStatus": "UNCONFIRMED",
+            "unitStatus": unit_info["unitStatus"],
+            "unit": unit_info["sourceLengthUnit"],
         },
     }
     passed = shape_valid and facts["faces"] > 0
@@ -178,11 +182,12 @@ def inspect(path: Path, normalized_brep: Path) -> dict:
             "headerExcerpt": header,
             "parseStrategy": parse_strategy,
             "fallbackFacts": fallback_facts,
+            "lengthUnit": unit_info,
         },
         "geometry": {"shapeValid": shape_valid, **facts},
         "outputs": {"normalizedBrep": normalized_brep.name, "sha256": sha256_file(normalized_brep)},
         "warnings": [
-            "STEP engineering unit is not inferred. Any downstream millimetre use requires an explicit engineering assumption or confirmed source unit.",
+            *([] if unit_info["unitStatus"] == "CONFIRMED" else ["No single supported SI length unit was explicitly declared by every STEP LENGTH_UNIT assignment; physical-unit claims remain blocked."]),
             *(["The source was normalized from a restricted explicit-triangle fallback because STEPControl did not expose usable faces. Preserve this provenance in downstream review."] if fallback_facts else []),
         ],
     }
