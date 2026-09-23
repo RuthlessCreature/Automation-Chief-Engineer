@@ -4,12 +4,13 @@ export type QualityDecision = { pass: true } | { pass: false; reasons: readonly 
 
 export const UNRESOLVED_PLACEHOLDER_PATTERN = /(?:\bTBD\b|\bTODO\b|\bN\/A\b|待定|待补充|待填写|待回填|留待.{0,16}(?:回填|归档|生成|补充)|(?:后续|稍后).{0,10}(?:补充|回填|填写))/i;
 export const REASONING_LEAK_PATTERN = /<\/?think>|(?:^|\n)\s*(?:analysis|reasoning|思考过程)\s*:/i;
-export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V8-NO-UNRESOLVED-OPTIONS";
+export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V9-TRACEABLE-ENGINEERING-SPECS";
 
 const UNSUPPORTED_COMPLETION_PATTERN = /(?:已|已经)(?:验证|测试|实测|签核|归档|出图|报价|归集|定义|写入|关闭|测得|证明|核对)|(?:已|已经)完成.{0,12}(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试|实测|测量|签核)|(?:已|已经)通过.{0,10}(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试)|(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试).{0,8}(?:已|已经)通过/i;
 // Quantitative claims must carry an engineering unit. Without that requirement,
 // references such as G01/G12 in a missing-input sentence were misread as values.
 const UNSUPPORTED_METRIC_PATTERN = /(?:检出率|检出准确率|误检率|漏检率|良率|OEE|产能|产量|节拍|定位精度|定位误差).{0,18}\d+(?:\.\d+)?\s*(?:%|ppm|mm|μm|um|秒|s|件|pcs)/i;
+const UNSOURCED_ENGINEERING_SPEC_PATTERN = /(?:接口|供电|电源|电压|电流|气压|工作压力|气源).{0,24}\d+(?:\.\d+)?\s*(?:VDC|VAC|V|MPa|bar|A|L\/min)(?![a-z])/i;
 const QUALIFIED_METRIC_CONTEXT = /(?:假设|假定|示例|目标|计划|规划|建议|预估|估算|测算|计算|基准|待验证|需验证|需确认|客户确认|未执行|未实测|未验证|不得|禁止|参考值)/i;
 const UNSOURCED_DEFAULT_METRIC_PATTERN = /(?:行业(?:典型|常用|惯例)|业内(?:典型|常用)|缺省|默认|经验值).{0,60}\d+(?:\.\d+)?\s*(?:%|ppm|mm|μm|µm|um|秒|s|件|pcs|OEE)?/i;
 const UNRESOLVED_OPTION_PATTERN = /(?:\bN\b|\bX\b)\s*(?:待|由.{0,12}(?:确定|确认|冻结|选定))|(?:任选其一|二选一|三选一|待选型|待方案确定)/i;
@@ -56,10 +57,11 @@ export function findUnsupportedClaims(body: string): string[] {
   const sentences = body.split(/(?<=[。！？!?；;\n])\s*/);
   const reasons = new Set<string>();
   for (const sentence of sentences) {
-    const negatedOrPlanned = /(?:未执行|未完成|未验证|未测试|未实测|尚未|不得|不能|不应|不构成|不代表|不属于|不视为|并非|禁止|计划|规划|假设|示例|建议|假装)/i.test(sentence);
+    const negatedOrPlanned = /(?:未执行|未完成|未验证|未测试|未实测|尚未|不得|不能|不应|不构成|不代表|不属于|不视为|不输出|不出具|并非|禁止|计划|规划|假设|示例|建议|假装)/i.test(sentence);
     if (UNSUPPORTED_COMPLETION_PATTERN.test(sentence) && !negatedOrPlanned) reasons.add("unsupported completed-test claim detected");
     const withoutGateIds = sentence.replace(/\b(?:G\d{2}(?:\/G?\d{2})?|R-\d{2}|OI-\d{3})\b/g, "");
     if (UNSUPPORTED_METRIC_PATTERN.test(withoutGateIds) && !QUALIFIED_METRIC_CONTEXT.test(sentence)) reasons.add("quantitative performance claim lacks an assumption or evidence qualifier");
+    if (UNSOURCED_ENGINEERING_SPEC_PATTERN.test(sentence) && !QUALIFIED_METRIC_CONTEXT.test(sentence)) reasons.add("quantified engineering specification lacks a source or explicit assumption");
     if (UNSOURCED_DEFAULT_METRIC_PATTERN.test(sentence)) reasons.add("industry/default numeric metric cannot become a requirement without source-content verification");
   }
   return [...reasons];
