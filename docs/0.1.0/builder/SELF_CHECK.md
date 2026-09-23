@@ -37,3 +37,27 @@
 - **Disposition of the previously reported gaps: FIXED for the explicitly tested patterns.** The regex is still a lexical guard, not an exhaustive engineering-dimension parser; this result does not certify arbitrary notation or semantic correctness.
 - Workflow branches for unprocessed/non-succeeded inputs, unreadable reports, and missing R2 report objects were code-reviewed and appear to mark recognized CAD-file extensions as `UNCONFIRMED`; these branches were **NOT integration-tested** or fault-injected.
 - Full suite after this latest pattern change, production deployment/rework, ZIP inspection, and Golden Sample semantic review: **NOT RUN**. No production or artifact-quality PASS is claimed.
+
+### Independent V7 review — source-bound default metrics and unit assumptions (2026-09-23)
+
+- `npx vitest run test/quality.test.ts`: PASS — 1 file / 11 tests. `npx tsc --noEmit`: PASS. `npm run types` (`wrangler types --check`): PASS.
+- The diff adds a default/industry metric rejection, scans physical-size-like text for raw `unit`/`单位` quantities, and rejects some explicit unit-assumption wording while CAD units remain unconfirmed. The existing Harness → `evaluateCandidate` flag path remains present. These are local checks only; no deployment is implied.
+- **Initial V7 review findings (subsequently re-reviewed below):** the default-metric exemption then accepted any inline `INPUT-*` or `RULE-*` token, including a fabricated rule ID; reverse-order unit assumptions were not detected; and broad raw `unit`/`单位` matching risked rejecting ordinary counts.
+- **Disposition at initial V7 review: FAIL.** See the remediation re-review below for the status after Builder's follow-up changes.
+- Full test suite, integration tests for real evidence/rule resolution and unit-assumption language, production deployment/rework, ZIP inspection, and Golden Sample semantic comparison: **NOT RUN**. No production or artifact-quality PASS is claimed.
+
+### Independent V7 remediation re-review — allowlisted source refs and geometry-scoped raw units (2026-09-23)
+
+- `npx vitest run test/quality.test.ts`: PASS — 1 file / 11 tests. `npx tsc --noEmit`: PASS. `npm run types` (`wrangler types --check`): PASS.
+- The previous fabricated/nonexistent `RULE-*` bypass is closed in the reviewed diff: default/industry metric exemptions now require an inline `INPUT-task-prompt` or `INPUT-FILE-*` token present in the supplied input-reference allowlist. Regression cases reject `RULE-DOES-NOT-EXIST` and accept an allowlisted input reference. Rule tokens alone no longer satisfy this condition.
+- The reverse-order unit assumption case (`STEP 单位暂按 mm`) is now detected; the regression suite also retains the assumption-first form. Raw `unit`/`单位` size detection is constrained by engineering geometry contexts, and ordinary count controls (`5 units per carton`, `5 个单位预算`) are tested as non-matches. The three V7 mechanical findings are **FIXED for the reviewed cases**.
+- **Disposition at that preceding review:** the gate verified only an allowlisted inline reference, not source content. The later focused follow-up below supersedes the citation-waiver behavior by hard-blocking matched default/industry metric phrases regardless of citations; source relevance is still not evaluated or used to grant an exception.
+- Full test suite, source-content/relevance integration tests, production deployment/rework, ZIP inspection, and Golden Sample semantic comparison: **NOT RUN**. No production or artifact-quality PASS is claimed.
+
+### Focused V7 follow-up — default metric hard block (2026-09-23)
+
+- `npx vitest run test/quality.test.ts`: PASS — 1 file / 11 tests. `npx tsc --noEmit`: PASS. `npm run types` (`wrangler types --check`): PASS.
+- Reviewed the newest `src/quality.ts` diff: matched industry/default numeric metric language is now rejected unconditionally by `UNSOURCED_DEFAULT_METRIC_PATTERN`; citations, including an inline `INPUT-task-prompt`, no longer waive the finding. The previous nonexistent `RULE-*` bypass and unrelated-allowlisted-input waiver are therefore closed for matched phrases. Regression tests assert both cases remain rejected.
+- No source-content verification mechanism is present in this change. Current safe behavior is to block matched default/industry metrics even if a source reference appears; it does not selectively allow values proven by source text.
+- **Remaining limitation:** this is still a lexical trigger, not semantic recognition of every way to phrase a default/industry value. Unlisted synonyms or wording outside the expression's bounded context may not trigger the hard block. This focused review did not establish exhaustive language coverage.
+- Full suite, lexical-coverage expansion/fuzzing, source-content verification implementation, production deployment/rework, ZIP inspection, and Golden Sample semantic comparison: **NOT RUN**. No production or artifact-quality PASS is claimed.

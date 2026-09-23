@@ -4,14 +4,17 @@ export type QualityDecision = { pass: true } | { pass: false; reasons: readonly 
 
 export const UNRESOLVED_PLACEHOLDER_PATTERN = /(?:\bTBD\b|\bTODO\b|\bN\/A\b|待定|待补充|待填写|待回填|留待.{0,16}(?:回填|归档|生成|补充)|(?:后续|稍后).{0,10}(?:补充|回填|填写))/i;
 export const REASONING_LEAK_PATTERN = /<\/?think>|(?:^|\n)\s*(?:analysis|reasoning|思考过程)\s*:/i;
-export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V6-UNIT-GUARD";
+export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V7-SOURCE-BOUND-METRICS";
 
 const UNSUPPORTED_COMPLETION_PATTERN = /(?:已|已经)(?:完成|验证|测试|实测|签核|归档|出图|报价|归集|定义|写入|关闭|测得|证明|核对)|(?:已|已经)通过.{0,10}(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试)|(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试).{0,8}(?:已|已经)通过/i;
 // Quantitative claims must carry an engineering unit. Without that requirement,
 // references such as G01/G12 in a missing-input sentence were misread as values.
 const UNSUPPORTED_METRIC_PATTERN = /(?:检出率|检出准确率|误检率|漏检率|良率|OEE|产能|产量|节拍|定位精度|定位误差).{0,18}\d+(?:\.\d+)?\s*(?:%|ppm|mm|μm|um|秒|s|件|pcs)/i;
 const QUALIFIED_METRIC_CONTEXT = /(?:假设|假定|示例|目标|计划|规划|建议|预估|估算|测算|计算|基准|待验证|需验证|需确认|客户确认|未执行|未实测|未验证|不得|禁止|参考值)/i;
+const UNSOURCED_DEFAULT_METRIC_PATTERN = /(?:行业(?:典型|常用|惯例)|业内(?:典型|常用)|缺省|默认|经验值).{0,60}\d+(?:\.\d+)?\s*(?:%|ppm|mm|μm|µm|um|秒|s|件|pcs|OEE)?/i;
 const UNIT_BEARING_MEASUREMENT_PATTERN = /(?:[<>≤≥~≈±]?\s*\d+(?:\.\d+)?\s*(?:millimeters?|mm|毫米|centimeters?|cm|厘米|micrometers?|microns?|μm|µm|um|微米|nanometers?|nm|纳米|inches?|英寸|英尺|feet|foot|ft|meters?|metres?|米|mils?|mil|m)(?![a-z0-9])|\bM\d+(?:\s*[x×]\s*\d+(?:\.\d+)?)?|[Ø⌀φ]\s*\d+(?:\.\d+)?|\bR\s*=?\s*\d+(?:\.\d+)?|\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?)/i;
+const RAW_COORDINATE_DIMENSION_PATTERN = /(?:尺寸|长度|宽度|高度|厚度|边长|直径|半径|工作距离|视场|bbox|坐标|缺陷.{0,5}尺寸).{0,25}[<>≤≥~≈±]?\s*\d+(?:\.\d+)?(?:\s*[~～–—-]\s*\d+(?:\.\d+)?)?\s*(?:units?|单位|坐标单位)(?![a-z0-9])/i;
+const UNCONFIRMED_UNIT_ASSUMPTION_PATTERN = /(?:(?:假设|暂按|默认|认定|推定).{0,35}(?:STEP|CAD|模型|几何|图纸)?.{0,15}(?:单位|unit).{0,20}(?:毫米|millimeters?|mm|厘米|centimeters?|cm|英寸|inches?|米|meters?|metres?|m)(?![a-z0-9])|(?:STEP|CAD|模型|几何|图纸).{0,15}(?:单位|unit).{0,12}(?:暂按|假设|默认|认定|推定).{0,12}(?:毫米|millimeters?|mm|厘米|centimeters?|cm|英寸|inches?|米|meters?|metres?|m)(?![a-z0-9]))/i;
 
 type StageContract = { id: string; required: readonly RegExp[]; labels: readonly string[] };
 
@@ -55,6 +58,7 @@ export function findUnsupportedClaims(body: string): string[] {
     if (UNSUPPORTED_COMPLETION_PATTERN.test(sentence) && !negatedOrPlanned) reasons.add("unsupported completed-test claim detected");
     const withoutGateIds = sentence.replace(/\b(?:G\d{2}(?:\/G?\d{2})?|R-\d{2}|OI-\d{3})\b/g, "");
     if (UNSUPPORTED_METRIC_PATTERN.test(withoutGateIds) && !QUALIFIED_METRIC_CONTEXT.test(sentence)) reasons.add("quantitative performance claim lacks an assumption or evidence qualifier");
+    if (UNSOURCED_DEFAULT_METRIC_PATTERN.test(sentence)) reasons.add("industry/default numeric metric cannot become a requirement without source-content verification");
   }
   return [...reasons];
 }
@@ -85,7 +89,9 @@ export function evaluateCandidate(candidate: CandidateArtifact, requiredEvidence
 
 export function findUnconfirmedUnitClaims(body: string): string[] {
   const claims = body.split(/(?<=[。！？!?；;\n])\s*/);
-  return claims.filter((sentence) => UNIT_BEARING_MEASUREMENT_PATTERN.test(sentence));
+  return claims.filter((sentence) => UNIT_BEARING_MEASUREMENT_PATTERN.test(sentence)
+    || RAW_COORDINATE_DIMENSION_PATTERN.test(sentence)
+    || UNCONFIRMED_UNIT_ASSUMPTION_PATTERN.test(sentence));
 }
 
 export function hasUnconfirmedCadUnits(unitStatuses: readonly (string | null | undefined)[]): boolean {

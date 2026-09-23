@@ -99,6 +99,22 @@ The initial implementation supersedes the historical “NOT_IMPLEMENTED” statu
 - `npm run types` (`wrangler types --check`): PASS.
 - `npx wrangler deploy --dry-run`: PASS; no production deployment yet at time of this build result.
 - Independent QA has verified unit/harness focused behavior and preserved the V5 production defect evidence. CAD report failure-path integration/fault injection, V6 production deployment/rework, ZIP inspection, and Golden Sample semantic comparison remain NOT RUN; no product-quality PASS is claimed.
+
+### V6 production result and V7 local iteration — 2026-09-23
+
+- V6 deployed to `zg.gaona.world` as Worker version `461cb8bb-8376-4884-9393-f921a7243d6d` only after confirming no Workflow instance was running.
+- The original 5015 rework ended `QUALITY_BLOCKED` with `retry_count=2`; V6-accepted checkpoints reached G00, G01, G03, G04, G05, G06 and G07. It stopped during G02 retries after repeated CAD-unit/physical-dimension violations. No customer ZIP was approved.
+- The production artifact review found V6 gaps: G01 included unreferenced industry/default percentages and OEE, and asserted a STEP-mm assumption despite `UNCONFIRMED`; G04 used values labelled as generic raw coordinate units. These are regression findings, not accepted engineering facts.
+- V7 local changes add a traceable-source check for numerical industry/default metrics, reject CAD-unit assumptions when the CAD report is unconfirmed, and block raw coordinate-unit dimensions. Planned cases `UNIT-009`, `UNIT-010` and `METRIC-001` remain unexecuted.
+- On the V7 local checkout: `npm test` PASS — 58/58; `npx tsc --noEmit` PASS; `npm run types` PASS; `npx wrangler deploy --dry-run` PASS. These results do not mean V7 is deployed or its checks pass in production.
+- V7 production deploy/rework, failure-path integration/fault injection, end-to-end propagation, ZIP review, and semantic Golden Sample comparison remain NOT RUN. No artifact-quality or release PASS is claimed.
+
+### V7 source-content fail-closed revision — 2026-09-23
+
+- Independent review found that an inline `INPUT-task-prompt` token could be mistaken for proof that the cited source supports a default/industry metric. The validator does not retrieve or semantically compare source contents, so V7 now blocks quantified industry/default metrics even when a candidate attaches an input citation. This is intentionally conservative until claim-to-source verification exists.
+- Current local verification after that revision: `npm test` PASS — 11 files / 58 tests; `npx tsc --noEmit` PASS; `npm run types` PASS; `npx wrangler deploy --dry-run` PASS; `git diff --check` PASS.
+- Independent focused QA: quality + harness 17/17 PASS, Wrangler types PASS, TypeScript PASS. Dependency sourcemap warnings for `@cloudflare/containers` remain non-fatal.
+- Same 5015 task is confirmed terminal at `QUALITY_BLOCKED` (`retry_count=2`; last update `2026-09-23T10:38:46.109Z`) before this revision. Production V7 deployment/rework, G01/G04 acceptance behavior, package review, and Golden Sample semantic comparison are still NOT RUN at this point. No ZIP or quality PASS is claimed.
 # Runtime build addendum — 2026-09-18
 
 The Worker now builds and deploys the STL CADCore runner, safe preview routes, Golden Comparator, Stage Harness, retry audit schema, fault-injection drill guard, MiniMax think/Markdown JSON normalization, Customer Delivery download panel, and Playwright regression harness. Deployment evidence: Worker version `49aa4612-5bd2-47e8-9f02-58a1043f0136`; remote D1 migrations `0006_quality_cad_retry.sql`, `0007_fault_injection_drill.sql`, and `0008_retry_run_isolation.sql` applied. This deployment also adds the stage-specific delivery-contract policy, full-rebuild rework isolation, explicit-assumption placeholder normalization, a 120-second bounded MiniMax wait, failed-task manual rework, automatic CADCore preparation at workflow start, and fail-closed ZIP assembly. The original static-only result below remains historical.

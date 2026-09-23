@@ -34,6 +34,12 @@ describe("independent candidate quality gate", () => {
       ]));
     expect(findUnsupportedClaims("检出率目标≥99%；当前没有实测，目标值仅作待验证假设。"))
       .toEqual([]);
+    expect(findUnsupportedClaims("误判率按行业典型值取 0.1%，作为默认验收指标。"))
+      .toContain("industry/default numeric metric cannot become a requirement without source-content verification");
+    expect(findUnsupportedClaims("默认 OEE≥95%，引用 RULE-DOES-NOT-EXIST 作为规划参考。"))
+      .toContain("industry/default numeric metric cannot become a requirement without source-content verification");
+    expect(findUnsupportedClaims("默认 OEE≥95%，依据用户已提供的 INPUT-task-prompt 指标验收条款作为规划参考。"))
+      .toContain("industry/default numeric metric cannot become a requirement without source-content verification");
   });
 
   it("does not treat gate identifiers in missing-input declarations as measured performance values", () => {
@@ -87,8 +93,16 @@ describe("independent candidate quality gate", () => {
       .toHaveLength(4);
     expect(findUnconfirmedUnitClaims("半径 R5；外形 2 × 5 × 3。"))
       .toHaveLength(2);
+    expect(findUnconfirmedUnitClaims("最小可检缺陷尺寸约 0.2 unit；工作距离 250–400 单位。"))
+      .toHaveLength(2);
+    expect(findUnconfirmedUnitClaims("5 units per carton; 5 个单位预算。"))
+      .toEqual([]);
     expect(findUnconfirmedUnitClaims("STEP 单位未确认，禁止标注 mm；bbox 原始值仅作坐标数据。"))
       .toEqual([]);
+    expect(findUnconfirmedUnitClaims("假设 STEP 文件单位为 mm，但 CADCore 标注 unitStatus=UNCONFIRMED。"))
+      .toHaveLength(1);
+    expect(findUnconfirmedUnitClaims("STEP 单位暂按 mm。"))
+      .toHaveLength(1);
     expect(findUnconfirmedUnitClaims("G04 进度 15/15；CADCore 确认 4 solids、397 faces、2130 edges。"))
       .toEqual([]);
     expect(hasUnconfirmedCadUnits([])).toBe(false);
@@ -105,12 +119,32 @@ describe("independent candidate quality gate", () => {
     if (decision.pass) throw new Error("unconfirmed CAD dimension unexpectedly passed");
     expect(decision.reasons).toContain("CAD source units are unconfirmed; numeric physical lengths/threads must not be stated");
 
+    const assumedUnitDecision = evaluateCandidate({
+      id: "unit-assumption", taskId: "task", stageId: "requirements", title: "需求基线",
+      body: ("功能需求、性能需求和接口需求均以输入边界、风险、责任人与下一阶段交接组织。 ").repeat(18)
+        + "假设 STEP 文件单位为 mm，但 CADCore unitStatus=UNCONFIRMED。",
+      evidence: ["INPUT-task-prompt", "RULE-G01"], provider: "minimax", model: "m3",
+    }, [], true);
+    expect(assumedUnitDecision.pass).toBe(false);
+    if (assumedUnitDecision.pass) throw new Error("unit assumption unexpectedly passed");
+    expect(assumedUnitDecision.reasons).toContain("CAD source units are unconfirmed; numeric physical lengths/threads must not be stated");
+
     const unitConfirmedDecision = evaluateCandidate({
       id: "unit-confirmed", taskId: "task", stageId: "requirements", title: "需求基线",
       body: body.replace("STEP 单位未确认，但", "单位已由输入证据确认；"),
       evidence: ["INPUT-task-prompt", "RULE-G01"], provider: "minimax", model: "m3",
     });
     expect(unitConfirmedDecision).toEqual({ pass: true });
+
+    const defaultMetricDecision = evaluateCandidate({
+      id: "unsourced-default", taskId: "task", stageId: "requirements", title: "需求基线",
+      body: ("功能需求、性能需求和接口需求均以输入边界、风险、责任人与下一阶段交接组织。 ").repeat(18)
+        + "误判率按行业典型值取 0.1%，作为默认验收指标。",
+      evidence: ["INPUT-task-prompt", "RULE-G01"], provider: "minimax", model: "m3",
+    });
+    expect(defaultMetricDecision.pass).toBe(false);
+    if (defaultMetricDecision.pass) throw new Error("unsourced industry metric unexpectedly passed");
+    expect(defaultMetricDecision.reasons).toContain("industry/default numeric metric cannot become a requirement without source-content verification");
 
     const titleDecision = evaluateCandidate({
       id: "unit-title-claim", taskId: "task", stageId: "product_cad", title: "M6 螺纹方案交接",

@@ -30,6 +30,13 @@
 - Added a generic V6 Harness gate that blocks physical length/thread claims whenever server-derived CAD input metadata reports unconfirmed units; the same 5015 production task is used only as a regression seed, not as a product-specific prompt/validator specialization.
 - A production rework is still required after deployment to establish whether MiniMax can produce safe, useful alternatives. No quality pass or ZIP acceptance is implied by the local code change.
 
+## Generic source-bound metric gate — 2026-09-23
+
+- V6 production experiment confirmed the unit guard blocks repeated unsupported dimensions, but G01 still passed uncited “industry typical/default” performance metrics and an assumed `STEP=mm` contradiction. G04 also used raw bbox values labelled only as generic coordinate “units”.
+- Added local V7 checks to reject numeric industry/default metrics unless source-content verification exists, and to block unit assumptions/raw-coordinate dimensions while CAD units are unconfirmed. Since source-content verification is not implemented, an inline citation token alone cannot waive the metric block. These controls are generic; 5015 is evidence/test input only.
+- The generic metric restriction is intentionally fail-closed but conservative; source-backed exception handling requires a future verified claim-to-source mechanism.
+- V7 full local tests/build pass; the current Worker remains V6 until independent review and controlled production rework complete. No ZIP or quality acceptance is claimed.
+
 ## Removed
 
 - 不适用。

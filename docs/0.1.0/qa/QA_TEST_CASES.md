@@ -444,3 +444,39 @@ These eight cases are planned regression coverage informed by the 5015 experimen
 - Verify rejection occurs before candidate acceptance and that rejected candidates remain internal/auditable but cannot enter a customer ZIP.
 - Define source binding for multiple CAD files and derived artifacts so unit status cannot leak across file, object, version or stage boundaries.
 - These are planned cases only. No execution, PASS result, production validation or ZIP-quality conclusion is claimed by this addendum.
+
+### UNIT-009: An assumed STEP unit cannot override unconfirmed source units
+
+- Priority: P0 when the assumed unit drives manufacturing/safety dimensions; otherwise P1
+- Type: Unit / Integration
+- Preconditions: CADCore evidence reports `unitStatus=UNCONFIRMED`; candidate explicitly says “assume STEP mm” (or equivalent assumption/default wording) and then interprets CAD geometry or gives physical dimensions on that basis.
+- Steps:
+  1. Submit the candidate with the assumed unit clearly labeled as an assumption.
+  2. Inspect deterministic findings, independent Gate outcome, candidate acceptance and downstream eligibility.
+- Expected Result: The assumption cannot override the source's `UNCONFIRMED` status. Any physical dimension or geometry interpretation that depends on assumed millimetres is rejected or held for authoritative unit confirmation; labeling it ASM, “assume”, or “default” does not make it a supported physical fact. No dependent downstream artifact or package may treat it as approved.
+
+### METRIC-001: Uncited default or “industry” numeric metrics cannot become requirements/facts
+
+- Priority: P1 (P0 when the metric is safety-critical, acceptance-critical, or drives release/manufacturing decisions)
+- Type: Unit / Integration
+- Preconditions: Candidate contains numeric performance/quality targets such as `1%`, `0.1%`, or `OEE ≥95%`, described as an industry norm, default, standard target or baseline. Test fixtures include (a) a real task-prompt or uploaded-input evidence reference present in the task's allowed evidence set, (b) no applicable input evidence, and (c) fabricated/arbitrary references such as `RULE-DOES-NOT-EXIST` that are absent from that set.
+- Steps:
+  1. Submit a metric with no evidence reference, then with `RULE-DOES-NOT-EXIST` or another fabricated/arbitrary reference; run deterministic validation and independent Gate review.
+  2. Submit a metric cited to a real task prompt/upload INPUT reference. Verify the reference resolves to the task's allowed evidence set and actually supports that target before reviewing the claim as a requirement.
+  3. Submit a comparison candidate where the metric is explicitly a non-binding proposal for owner approval, is not represented as a fact or acceptance criterion, and is not used to pass a Gate.
+  4. Inspect claim maturity, evidence resolution, relevance/support findings, Gate outcome and downstream artifact use for all variants.
+- Expected Result: A metric presented as a requirement, verified fact, or acceptance criterion is blocked unless it has a real, resolvable task-prompt or uploaded-input (`INPUT`) evidence reference in that task's allowed evidence set which supports the stated value and context. An arbitrary or fabricated `RULE-*`/`RULE-DOES-NOT-EXIST` ID, an unresolved reference, or a citation that does not support the metric does not waive the block. A clearly labeled non-binding proposal may be retained only as a proposal requiring approval and cannot independently satisfy a Gate, calculation or release criterion. This case requires evidence resolution and relevance checks; string presence alone is insufficient.
+
+Both cases above are planned coverage only and have **NOT BEEN EXECUTED**. They do not change any runtime QA result or establish production behavior.
+
+### UNIT-010: Raw CAD coordinate units are not physical design dimensions
+
+- Priority: P0 when used for manufacturing/safety dimensions; otherwise P1
+- Type: Unit / Integration
+- Preconditions: CADCore supplies a raw bounding box or coordinate measurements while source units remain unconfirmed. Candidate avoids named physical units such as `mm` but reports values such as `0.2 unit`, `250–400 单位`, or presents raw coordinate ranges as physical design dimensions.
+- Steps:
+  1. Submit candidates using raw coordinate values and generic “unit/单位” labels, including ranges derived from the bounding box.
+  2. Inspect deterministic findings, independent Gate decision, candidate acceptance and downstream mechanical/BOM/package eligibility.
+- Expected Result: Raw coordinates and generic unit labels remain non-physical/unconfirmed; they cannot be represented as confirmed physical design dimensions, fit/clearance values or manufacturing specifications. Such claims are rejected or held until an authoritative physical-unit mapping is established, with no downstream artifact or package treating them as approved dimensions.
+
+UNIT-010 is planned coverage only and has **NOT BEEN EXECUTED**. It does not change any runtime QA result or establish production behavior.
