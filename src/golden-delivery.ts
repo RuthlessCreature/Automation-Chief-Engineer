@@ -37,27 +37,23 @@ export function views(prefix:"02_产品CAD与视图"|"03_整机概念CAD与视�
 export function root(title:string){return`${title.normalize("NFKC").replace(/[\\/:*?"<>|]+/g,"-").replace(/\s+/g," ").trim().slice(0,60)||"非标自动化项目"}方案包`}
 const ce=(v:string|number)=>/[",\r\n]/.test(String(v))?`"${String(v).replace(/"/g,'""')}"`:String(v);export function manifestCsv(r:Record<string,string|number>[]){const f=["File ID","File Name","Relative Path","Version","Description","Owner Module","Controlled Baseline Revision","Status","Validation Result","Size","SHA256","Customer"];return e.encode([f.join(","),...r.map(q=>f.map(k=>ce(q[k]??"")).join(","))].join("\r\n"))}export function manifestJson(r:Record<string,string|number>[]){return e.encode(JSON.stringify({profile:GOLDEN_PROFILE,schemaVersion:GOLDEN_SCHEMA,files:r},null,2))}
 function rgbPng(w:number,h:number,p:Uint8Array){const tw=Math.min(600,w),th=Math.min(400,h),src=(tw===w&&th===h)?p:new Uint8Array(tw*th*3);if(src!==p){for(let y=0;y<th;y++){const sy=Math.min(h-1,Math.floor(y*h/th));for(let x=0;x<tw;x++){const sx=Math.min(w-1,Math.floor(x*w/tw)),si=(sy*w+sx)*3,di=(y*tw+x)*3;src[di]=p[si]!;src[di+1]=p[si+1]!;src[di+2]=p[si+2]!}}}const raw=new Uint8Array(th*(1+tw*3));let k=0;for(let y=0;y<th;y++){raw[k++]=0;raw.set(src.subarray(y*tw*3,(y+1)*tw*3),k);k+=tw*3}const ih=new Uint8Array(13),iv=new DataView(ih.buffer);iv.setUint32(0,tw,false);iv.setUint32(4,th,false);ih[8]=8;ih[9]=2;const q=[Uint8Array.from([137,80,78,71,13,10,26,10]),ch("IHDR",ih),ch("IDAT",zs(raw)),ch("IEND",new Uint8Array())],out=new Uint8Array(q.reduce((s,b)=>s+b.length,0));k=0;for(const b of q){out.set(b,k);k+=b.length}return out}
-function rgbPngScanlines(raw:Uint8Array,w:number,h:number) {
-  const blocks=Math.ceil(raw.length/65535),zlibLength=2+raw.length+blocks*5+4;
-  const out=new Uint8Array(8+25+12+zlibLength+12),view=new DataView(out.buffer);
+async function rgbPngScanlines(raw:Uint8Array,w:number,h:number) {
+  const source=new ReadableStream<Uint8Array>({start(controller){controller.enqueue(raw);controller.close()}});
+  const compressor=new CompressionStream("deflate") as unknown as TransformStream<Uint8Array,Uint8Array>;
+  const compressed=new Uint8Array(await new Response(source.pipeThrough(compressor)).arrayBuffer());
+  const zlibLength=compressed.length,out=new Uint8Array(8+25+12+zlibLength+12),view=new DataView(out.buffer);
   out.set([137,80,78,71,13,10,26,10],0);
   const ihdr=8;view.setUint32(ihdr,13,false);out.set(e.encode("IHDR"),ihdr+4);view.setUint32(ihdr+8,w,false);view.setUint32(ihdr+12,h,false);out[ihdr+16]=8;out[ihdr+17]=2;
   view.setUint32(ihdr+21,crc(out.subarray(ihdr+4,ihdr+21)),false);
   const idat=33;view.setUint32(idat,zlibLength,false);out.set(e.encode("IDAT"),idat+4);
-  let cursor=idat+8;out[cursor++]=0x78;out[cursor++]=0x01;
-  for(let offset=0;offset<raw.length;offset+=65535){
-    const size=Math.min(65535,raw.length-offset);out[cursor++]=offset+size>=raw.length?1:0;
-    view.setUint16(cursor,size,true);cursor+=2;view.setUint16(cursor,(~size)&0xffff,true);cursor+=2;
-    out.set(raw.subarray(offset,offset+size),cursor);cursor+=size;
-  }
-  let a=1,b=0;for(const value of raw){a=(a+value)%65521;b=(b+a)%65521}view.setUint32(cursor,((b<<16)|a)>>>0,false);cursor+=4;
+  const cursor=idat+8;out.set(compressed,cursor);
   view.setUint32(idat+8+zlibLength,crc(out.subarray(idat+4,idat+8+zlibLength)),false);
   const iend=idat+12+zlibLength;view.setUint32(iend,0,false);out.set(e.encode("IEND"),iend+4);view.setUint32(iend+8,crc(out.subarray(iend+4,iend+8)),false);
   return out;
 }
 function binaryStlTriangles(b:Uint8Array){if(b.byteLength<84)return[] as number[][];const v=new DataView(b.buffer,b.byteOffset,b.byteLength),n=v.getUint32(80,true);if(n===1&&b.byteLength<200)return[] as number[][];if(n<1||n>500000||84+n*50>b.byteLength)return[] as number[][];const stride=Math.max(1,Math.ceil(n/800)),a:number[][]=[];for(let i=0;i<n;i+=stride){const o=84+i*50,t:number[]=[];for(let j=0;j<9;j++)t.push(v.getFloat32(o+12+j*4,true));if(t.every(Number.isFinite))a.push(t)}return a}
 type RenderMode="clean"|"annotated"|"diagram";
-function rasterStl(b:Uint8Array,yaw:number,pitch:number,seed:number,mode:RenderMode="clean") {
+async function rasterStl(b:Uint8Array,yaw:number,pitch:number,seed:number,mode:RenderMode="clean"):Promise<Uint8Array> {
   const tris=binaryStlTriangles(b);
   if(!tris.length)return png(seed);
   // The Golden validator requires at least 600x400. Render directly at that
@@ -104,8 +100,8 @@ function rasterStl(b:Uint8Array,yaw:number,pitch:number,seed:number,mode:RenderM
   }
   return rgbPngScanlines(p,w,h);
 }
-export function geometryViews(prefix:"02_产品CAD与视图"|"03_整机概念CAD与视图",stl:Uint8Array,product=true):Entry[]{const names=product?["bottom","front","isometric","right","top"]:["cutaway","front","isometric","right","top"],angles=product?[[0,-1.57],[0,0],[.78,.55],[1.57,0],[0,1.57]]:[[.45,.25],[0,0],[.78,.55],[1.57,0],[0,1.57]];return names.map((name,i)=>({relativePath:prefix+"/"+name+".png",data:rasterStl(stl,angles[i]![0]!,angles[i]![1]!,500+i),description:(product?"Product ":"Machine ")+name+" geometry-derived view",ownerModule:product?"ProductCAD":"Mechanical",status:product?"CADCORE_DERIVED_VIEW":"ASM_NOT_VERIFIED",validationResult:"GEOMETRY_DERIVED_PNG"}))}
-export function geometryVisuals(productStl:Uint8Array,conceptStl:Uint8Array):Entry[]{const a:Entry[]=[];for(let i=1;i<=90;i++){const product=i%6===0,source=product?productStl:conceptStl;a.push({relativePath:"04_工程视觉/01_clean/VIS-CLEAN-"+String(i).padStart(3,"0")+".png",data:rasterStl(source,(i*.173)%6.28,-.6+(i%13)*.095,i,"clean"),description:"Geometry-derived clean VIS "+i,ownerModule:"DigitalTwin",status:product?"CADCORE_DERIVED_VIEW":"ASM_NOT_VERIFIED",validationResult:"GEOMETRY_DERIVED_PNG"})}for(let i=1;i<=4;i++)a.push({relativePath:"04_工程视觉/02_annotated/VIS-ANN-"+String(i).padStart(3,"0")+".png",data:rasterStl(conceptStl,.4+i*.8,.2+i*.08,100+i,"annotated"),description:"Geometry-derived annotated VIS "+i,ownerModule:"DigitalTwin",status:"ASM_NOT_VERIFIED",validationResult:"GEOMETRY_DERIVED_PNG"});for(let i=1;i<=2;i++)a.push({relativePath:"04_工程视觉/03_diagram/VIS-DIA-"+String(i).padStart(3,"0")+".png",data:rasterStl(i===1?productStl:conceptStl,1.1+i,.45,200+i,"diagram"),description:"Geometry-derived diagram VIS "+i,ownerModule:"Documentation",status:"ENGINEERING_DIAGRAM",validationResult:"GEOMETRY_DERIVED_PNG"});return a}
+export async function geometryViews(prefix:"02_产品CAD与视图"|"03_整机概念CAD与视图",stl:Uint8Array,product=true):Promise<Entry[]>{const names=product?["bottom","front","isometric","right","top"]:["cutaway","front","isometric","right","top"],angles=product?[[0,-1.57],[0,0],[.78,.55],[1.57,0],[0,1.57]]:[[.45,.25],[0,0],[.78,.55],[1.57,0],[0,1.57]],entries:Entry[]=[];for(let i=0;i<names.length;i++){const name=names[i]!;entries.push({relativePath:prefix+"/"+name+".png",data:await rasterStl(stl,angles[i]![0]!,angles[i]![1]!,500+i),description:(product?"Product ":"Machine ")+name+" geometry-derived view",ownerModule:product?"ProductCAD":"Mechanical",status:product?"CADCORE_DERIVED_VIEW":"ASM_NOT_VERIFIED",validationResult:"GEOMETRY_DERIVED_PNG"})}return entries}
+export async function geometryVisuals(productStl:Uint8Array,conceptStl:Uint8Array):Promise<Entry[]>{const a:Entry[]=[];for(let i=1;i<=90;i++){const product=i%6===0,source=product?productStl:conceptStl;a.push({relativePath:"04_工程视觉/01_clean/VIS-CLEAN-"+String(i).padStart(3,"0")+".png",data:await rasterStl(source,(i*.173)%6.28,-.6+(i%13)*.095,i,"clean"),description:"Geometry-derived clean VIS "+i,ownerModule:"DigitalTwin",status:product?"CADCORE_DERIVED_VIEW":"ASM_NOT_VERIFIED",validationResult:"GEOMETRY_DERIVED_PNG"})}for(let i=1;i<=4;i++)a.push({relativePath:"04_工程视觉/02_annotated/VIS-ANN-"+String(i).padStart(3,"0")+".png",data:await rasterStl(conceptStl,.4+i*.8,.2+i*.08,100+i,"annotated"),description:"Geometry-derived annotated VIS "+i,ownerModule:"DigitalTwin",status:"ASM_NOT_VERIFIED",validationResult:"GEOMETRY_DERIVED_PNG"});for(let i=1;i<=2;i++)a.push({relativePath:"04_工程视觉/03_diagram/VIS-DIA-"+String(i).padStart(3,"0")+".png",data:await rasterStl(i===1?productStl:conceptStl,1.1+i,.45,200+i,"diagram"),description:"Geometry-derived diagram VIS "+i,ownerModule:"Documentation",status:"ENGINEERING_DIAGRAM",validationResult:"GEOMETRY_DERIVED_PNG"});return a}
 
 /** Fix the relationship location for media in a Word package. The legacy
  * deterministic fixture keeps all relationships in the root part so it can be

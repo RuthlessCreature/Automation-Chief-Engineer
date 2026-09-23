@@ -275,7 +275,7 @@ export async function freezeGoldenCustomerDelivery(env: Env, taskId: string): Pr
       { relativePath: "02_产品CAD与视图/product.brep", data: productBrepBytes, description: "CADCore normalized product BREP", ownerModule: "ProductCAD", status: "CADCORE_DERIVED", validationResult: "PASS" },
       { relativePath: "02_产品CAD与视图/product.step", data: productStepBytes, description: "CADCore product STEP derivative", ownerModule: "ProductCAD", status: "CADCORE_DERIVED", validationResult: "PASS" },
       { relativePath: "02_产品CAD与视图/product.stl", data: productStlBytes, description: "CADCore product STL derivative", ownerModule: "ProductCAD", status: "CADCORE_DERIVED", validationResult: "PASS" },
-      ...geometryViews("02_产品CAD与视图", productStlBytes, true),
+      ...await geometryViews("02_产品CAD与视图", productStlBytes, true),
     );
   } else {
     payload.push(...noProductCadEvidence());
@@ -298,21 +298,22 @@ export async function freezeGoldenCustomerDelivery(env: Env, taskId: string): Pr
         status: "ASM_NOT_VERIFIED",
         validationResult: "GOLDEN_REFERENCE_VIEW",
       })))
-    : geometryViews("03_整机概念CAD与视图", conceptStlBytes, false);
+    : await geometryViews("03_整机概念CAD与视图", conceptStlBytes, false);
+  const engineeringVisuals = productStlBytes
+    ? await geometryVisuals(productStlBytes, conceptStlBytes)
+    : (await geometryVisuals(conceptStlBytes, conceptStlBytes)).map((entry) => ({
+        ...entry,
+        description: "NO_PRODUCT_CAD_PROVIDED | concept-geometry-only visual evidence",
+        status: entry.relativePath.includes("/03_diagram/") ? "ENGINEERING_DIAGRAM" : "ASM_NOT_VERIFIED",
+        validationResult: "CONCEPT_ONLY_NO_PRODUCT_CAD",
+      }));
   payload.push(
     { relativePath: "03_整机概念CAD与视图/layout_and_zones.svg", data: svg(task.title, conceptEnvelope), description: "概念整机布局与分区", ownerModule: "Mechanical", status: "ASM_NOT_VERIFIED", validationResult: "PASS" },
     { relativePath: "03_整机概念CAD与视图/concept.brep", data: conceptBrepBytes, description: "受控概念整机 BREP", ownerModule: "Mechanical", status: "ASM_NOT_VERIFIED", validationResult: "PASS" },
     { relativePath: "03_整机概念CAD与视图/concept.step", data: conceptStepBytes, description: "受控概念整机 STEP", ownerModule: "Mechanical", status: "ASM_NOT_VERIFIED", validationResult: "PASS" },
     { relativePath: "03_整机概念CAD与视图/concept.stl", data: conceptStlBytes, description: "受控概念整机 STL", ownerModule: "Mechanical", status: "ASM_NOT_VERIFIED", validationResult: "PASS" },
     ...conceptViewEntries,
-    ...(productStlBytes
-      ? geometryVisuals(productStlBytes, conceptStlBytes)
-      : geometryVisuals(conceptStlBytes, conceptStlBytes).map((entry) => ({
-          ...entry,
-          description: "NO_PRODUCT_CAD_PROVIDED | concept-geometry-only visual evidence",
-          status: entry.relativePath.includes("/03_diagram/") ? "ENGINEERING_DIAGRAM" : "ASM_NOT_VERIFIED",
-          validationResult: "CONCEPT_ONLY_NO_PRODUCT_CAD",
-        }))),
+    ...engineeringVisuals,
   );
 
   // Office deliverables must carry a reviewable evidence sequence, not just

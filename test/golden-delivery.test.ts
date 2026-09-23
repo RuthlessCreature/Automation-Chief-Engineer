@@ -154,17 +154,18 @@ describe("Golden-121 deterministic assets", () => {
     });
   });
 
-  it("keeps exact view, visual and open-item counts", () => {
+  it("keeps exact view, visual and open-item counts", async () => {
     expect(views("02_产品CAD与视图", true)).toHaveLength(5);
     expect(views("03_整机概念CAD与视图", false)).toHaveLength(5);
     expect(visuals()).toHaveLength(96);
     const stl = twoTriangleStl();
-    const productViews = geometryViews("02_产品CAD与视图", stl, true);
-    const evidence = geometryVisuals(stl, stl);
+    const productViews = await geometryViews("02_产品CAD与视图", stl, true);
+    const evidence = await geometryVisuals(stl, stl);
     expect(productViews).toHaveLength(5);
     expect(evidence).toHaveLength(96);
     const imageHeader = new DataView(productViews[0]!.data.buffer, productViews[0]!.data.byteOffset, productViews[0]!.data.byteLength);
     expect([imageHeader.getUint32(16), imageHeader.getUint32(20)]).toEqual([600, 400]);
+    expect(productViews[0]!.data.byteLength).toBeLessThan(100_000);
     expect([...productViews, ...evidence].every((entry) => entry.data.slice(0, 8).every((byte, index) => byte === [137,80,78,71,13,10,26,10][index]))).toBe(true);
     expect(new TextDecoder().decode(openCsv()).trim().split(/\r?\n/)).toHaveLength(15);
   }, 15000);
@@ -180,8 +181,8 @@ describe("Golden-121 deterministic assets", () => {
     expect(text).toMatch(/startxref\n\d+\n%%EOF/);
   });
 
-  it("bounds geometry render output to the production-safe 600x400 raster", () => {
-    const data = geometryViews("02_产品CAD与视图", twoTriangleStl(), true)[0]!.data;
+  it("bounds geometry render output to the production-safe 600x400 raster", async () => {
+    const data = (await geometryViews("02_产品CAD与视图", twoTriangleStl(), true))[0]!.data;
     const ihdr = new DataView(data.buffer, data.byteOffset + 16, 8);
     expect(ihdr.getUint32(0, false)).toBe(600);
     expect(ihdr.getUint32(4, false)).toBe(400);
