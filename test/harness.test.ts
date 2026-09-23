@@ -23,11 +23,13 @@ const validBody = "本阶段建立产品 CAD 的输入边界、几何接口与�
 describe("stage harness", () => {
   it("requires every server-verified uploaded input to be cited before acceptance", async () => {
     let calls = 0;
+    let seenPrompt = "";
     const required = "INPUT-FILE-7e32-source-step";
     const provider: ModelProvider = {
       name: "fixture",
       async generateCandidate(input) {
         calls += 1;
+        seenPrompt = input.prompt;
         return calls === 1
           ? candidate(validBody, calls)
           : candidate(`${validBody}\n输入追溯标识：${required}`, calls);
@@ -43,6 +45,8 @@ describe("stage harness", () => {
     expect(result).toMatchObject({ status: "ACCEPTED", attempts: 2 });
     expect(calls).toBe(2);
     expect(result.status === "ACCEPTED" && result.artifact.evidence).toContain(required);
+    expect(seenPrompt).toContain("必须逐字引用以下服务端核验的输入 ID");
+    expect(seenPrompt).toContain(required);
   });
 
   it("repairs a placeholder candidate before accepting and persisting it", async () => {

@@ -51,8 +51,16 @@ export async function runStageHarness(input: {
   const maxAttempts = Math.max(1, Math.min(MAX_STAGE_HARNESS_ATTEMPTS, input.maxAttempts ?? MAX_STAGE_HARNESS_ATTEMPTS));
   let feedback: string[] = [];
   let lastReasons: string[] = ["stage candidate was not accepted"];
-  const governedPrompt = input.unconfirmedCadUnits
-    ? `${input.prompt}\n\nCAD 单位受控补充约束（必须遵守）：输入 CAD/STEP 单位为 UNCONFIRMED。只可复述已验证的拓扑计数，不得提供任何 CAD 派生长度、孔径、螺纹、坐标、包络、焦距、工作距离、像素当量或夹具配合尺寸。也不得用“待验证”“假设”或“示例”作掩护保留这些数字。不得自行补充任何无来源的标准件尺寸、安装网格、气压/电压/速度、采集帧数、机柜尺寸或器件规格；仅当该精确值出现在用户输入或可核验规则中时才可使用。无法定尺寸时交付定性的结构与选型原则，不得留下 N/X、任选其一、二选一等未闭环变量/选择。`
+  const promptConstraints = [
+    input.unconfirmedCadUnits
+      ? "CAD 单位受控补充约束（必须遵守）：输入 CAD/STEP 单位为 UNCONFIRMED。只可复述已验证的拓扑计数，不得提供任何 CAD 派生长度、孔径、螺纹、坐标、包络、焦距、工作距离、像素当量或夹具配合尺寸。也不得用“待验证”“假设”或“示例”作掩护保留这些数字。不得自行补充任何无来源的标准件尺寸、安装网格、气压/电压/速度、采集帧数、机柜尺寸或器件规格；仅当该精确值出现在用户输入或可核验规则中时才可使用。无法定尺寸时交付定性的结构与选型原则，不得留下 N/X、任选其一、二选一等未闭环变量/选择。"
+      : "",
+    input.requiredEvidenceRefs?.length
+      ? `必须逐字引用以下服务端核验的输入 ID：${input.requiredEvidenceRefs.join(", " )}。每个 ID 都要同时出现在 body 的“输入可追溯”段和 evidence 数组；若未引用任何一个，候选会被阻断。不得改写、缩写或猜测 ID。`
+      : "",
+  ].filter(Boolean);
+  const governedPrompt = promptConstraints.length
+    ? `${input.prompt}\n\n服务端受控约束（必须遵守）：\n${promptConstraints.join("\n")}`
     : input.prompt;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -128,6 +136,9 @@ export async function runStageHarness(input: {
       ...(placeholders.length ? [`remove unresolved placeholder tokens: ${placeholders.join(", ")}`] : []),
       ...(lastReasons.some((reason) => reason.includes("CAD source units are unconfirmed"))
         ? ["CAD 单位未确认时，删除全部从 CAD 坐标/bbox 推导的物理长度数值；标注“单位未确认”也不能保留该数字。不得输出任何长度、螺纹、直径或从坐标换算的尺寸/焦距/工作距离；只能定性描述几何，并把缺失的单位确认作为交接输入。"]
+        : []),
+      ...(lastReasons.some((reason) => reason.startsWith("missing required source reference:"))
+        ? [`修复输入追溯：将每个服务端必需引用 ${input.requiredEvidenceRefs?.join(", ") ?? ""} 原样写入 body 的“输入可追溯”段和 evidence 数组；不可漏引或改写。`]
         : []),
       "保留真实输入边界和待验证假设，但不得输出占位词或伪造已完成结论。",
     ];
