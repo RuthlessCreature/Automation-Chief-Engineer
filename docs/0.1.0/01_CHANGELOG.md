@@ -54,6 +54,7 @@
 
 - V15 same-task rework accepted G00 but blocked G01. The exact rejected text showed the CAD-unit regex matched the `M3` in a provider metadata line (`MiniMax-M3`), not an engineering thread callout. V16 excludes provider/model provenance lines from physical-dimension scanning while retaining detection of `M3` thread claims in actual design text; regression coverage added.
 - V16 same-task rework stopped at G01 after provider-format retries. The final response was an incomplete JSON object containing engineering prose; the existing fallback correctly did not pass it through the transport gate, but still created a rejected candidate artifact. V17 makes schema-shaped truncated JSON a provider-format failure before candidate construction and adds a regression; free-form engineering Markdown still uses the existing constrained fallback.
+- V17 same-task rework passed G00/G01 and blocked G03. The rejected candidate explicitly assumed the unconfirmed STEP unit was millimeters and left camera interfaces, light types, and network protocol among “任一/中选” alternatives. V18 strengthens the CAD-unit instruction/repair feedback and deterministic unresolved-choice vocabulary; dimensions and choices remain blocked, not relaxed.
 
 ## Removed
 

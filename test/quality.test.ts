@@ -26,6 +26,10 @@ describe("independent candidate quality gate", () => {
       .toContain("未完成的回填占位");
     expect(findUnresolvedPlaceholders("ROI 数量 N 待算法阶段结合面分组确定；触发源在按钮和脚踏中任选其一。"))
       .toContain("未闭环的变量或方案选择");
+    expect(findUnresolvedPlaceholders("接口采用 GigE / USB3 Vision / CoaXPress 任一均可。"))
+      .toContain("未闭环的变量或方案选择");
+    expect(findUnresolvedPlaceholders("光源在环形、同轴、背光等方式中选取。"))
+      .toContain("未闭环的变量或方案选择");
   });
 
   it("rejects fabricated FAT and trial-performance results unless explicitly bounded", () => {

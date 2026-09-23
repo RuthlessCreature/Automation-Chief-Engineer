@@ -178,3 +178,9 @@ The Worker now builds and deploys the STL CADCore runner, safe preview routes, G
 - The V16 G01 final candidate was a truncated schema-shaped JSON response. It was blocked, but the prose fallback still materialized a rejected artifact from that malformed envelope.
 - V17 rejects JSON-shaped fragments at the provider boundary before candidate construction; genuine prose fallback remains unchanged and still passes all independent gates. Regression covers a long, engineering-looking but unclosed JSON body.
 - V17 provider/quality tests: 22/22 PASS; full suite: 65/65 PASS; TypeScript: PASS; Wrangler types: PASS; dry-run: PASS; diff check: PASS. Deployment and same-task production replay pending.
+
+### V18 explicit unit and choice closure — 2026-09-24
+
+- V17 production rework passed G00/G01, then blocked at G03 because the candidate asserted a millimeter-unit assumption while CADCore still reported `UNCONFIRMED`; it also gave unresolved interface/light/protocol alternatives as “任一均可 / 中选取”.
+- V18 explicitly forbids assigning mm/inch/any unit when the server reports `UNCONFIRMED`, gives exact repair feedback, and extends deterministic unresolved-option detection for “任一均可”, “任意一种”, and “中选取”. No CAD/unit or supplier quality Gate was relaxed.
+- Focused quality/Harness tests: 20/20 PASS; full suite: 65/65 PASS; TypeScript: PASS; Wrangler types: PASS; deploy dry-run: PASS; diff check: PASS. V18 deployment and same-task replay pending.

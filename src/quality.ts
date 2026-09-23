@@ -4,7 +4,7 @@ export type QualityDecision = { pass: true } | { pass: false; reasons: readonly 
 
 export const UNRESOLVED_PLACEHOLDER_PATTERN = /(?:\bTBD\b|\bTODO\b|\bN\/A\b|待定|待补充|待填写|待回填|留待.{0,16}(?:回填|归档|生成|补充)|(?:后续|稍后).{0,10}(?:补充|回填|填写))/i;
 export const REASONING_LEAK_PATTERN = /<\/?think>|(?:^|\n)\s*(?:analysis|reasoning|思考过程)\s*:/i;
-export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V17-STRICT-JSON-TRANSPORT";
+export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V18-UNIT-AND-CHOICE-CLOSURE";
 
 const UNSUPPORTED_COMPLETION_PATTERN = /(?:已|已经)(?:测试|实测|签核|归档|出图|报价|归集|定义|写入|关闭|测得|证明|核对)|(?:已|已经)验证.{0,10}(?:性能|功能|指标|准确率|节拍|验收|样件|缺陷|检测结果)|(?:已|已经)完成.{0,12}(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试|实测|测量|签核)|(?:已|已经)通过.{0,10}(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|测试|实测|测量)|(?:已|已经)通过.{0,10}(?<!待)验证|(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试).{0,8}(?:已|已经)通过/i;
 // Quantitative claims must carry an engineering unit. Without that requirement,
@@ -13,7 +13,7 @@ const UNSUPPORTED_METRIC_PATTERN = /(?:检出率|检出准确率|误检率|漏�
 const UNSOURCED_ENGINEERING_SPEC_PATTERN = /(?:接口|供电|电源|电压|电流|气压|工作压力|气源).{0,24}\d+(?:\.\d+)?\s*(?:VDC|VAC|V|MPa|bar|A|L\/min)(?![a-z])/i;
 const QUALIFIED_METRIC_CONTEXT = /(?:假设|假定|示例|目标|计划|规划|建议|预估|估算|测算|计算|基准|待验证|需验证|需确认|客户确认|未执行|未实测|未验证|不得|禁止|参考值)/i;
 const UNSOURCED_DEFAULT_METRIC_PATTERN = /(?:行业(?:典型|常用|惯例)|业内(?:典型|常用)|缺省|默认|经验值).{0,60}\d+(?:\.\d+)?\s*(?:%|ppm|mm|μm|µm|um|秒|s|件|pcs|OEE)?/i;
-const UNRESOLVED_OPTION_PATTERN = /(?:\bN\b|\bX\b)\s*(?:待|由.{0,12}(?:确定|确认|冻结|选定))|(?:任选其一|二选一|三选一|待选型|待方案确定)/i;
+const UNRESOLVED_OPTION_PATTERN = /(?:\bN\b|\bX\b)\s*(?:待|由.{0,12}(?:确定|确认|冻结|选定))|(?:任选其一|二选一|三选一|待选型|待方案确定|任一均可|任意一种|可任选|待用户选择|中选取|择一)/i;
 const UNIT_BEARING_MEASUREMENT_PATTERN = /(?:[<>≤≥~≈±]?\s*\d+(?:\.\d+)?\s*(?:millimeters?|mm|毫米|centimeters?|cm|厘米|micrometers?|microns?|μm|µm|um|微米|nanometers?|nm|纳米|inches?|英寸|英尺|feet|foot|ft|meters?|metres?|米|mils?|mil|m)(?![a-z0-9])|\bM\d+(?:\s*[x×]\s*\d+(?:\.\d+)?)?|[Ø⌀φ]\s*\d+(?:\.\d+)?|\bR\s*=?\s*\d+(?:\.\d+)?(?![\d\-–—:：])|\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?)/i;
 const RAW_COORDINATE_DIMENSION_PATTERN = /(?:尺寸|长度|宽度|高度|厚度|边长|直径|半径|工作距离|视场|bbox|坐标|缺陷.{0,5}尺寸).{0,25}[<>≤≥~≈±]?\s*\d+(?:\.\d+)?(?:\s*[~～–—-]\s*\d+(?:\.\d+)?)?\s*(?:units?|单位|坐标单位)(?![a-z0-9])/i;
 const UNCONFIRMED_UNIT_ASSUMPTION_PATTERN = /(?:(?:假设|暂按|默认|认定|推定).{0,35}(?:STEP|CAD|模型|几何|图纸)?.{0,15}(?:单位|unit).{0,20}(?:毫米|millimeters?|mm|厘米|centimeters?|cm|英寸|inches?|米|meters?|metres?|m)(?![a-z0-9])|(?:STEP|CAD|模型|几何|图纸).{0,15}(?:单位|unit).{0,12}(?:暂按|假设|默认|认定|推定).{0,12}(?:毫米|millimeters?|mm|厘米|centimeters?|cm|英寸|inches?|米|meters?|metres?|m)(?![a-z0-9]))/i;
