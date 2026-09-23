@@ -9,6 +9,7 @@ import type { TaskCoordinator } from "./task-coordinator";
 import { runStageHarness } from "./harness";
 import { hasUnconfirmedCadUnits } from "./quality";
 import { openWorkflowIncident, resolveTaskIncidents } from "./incidents";
+import { formatCadBBoxForPrompt } from "./input-dossier";
 
 export type TaskWorkflowParams = { taskId: string; ownerId: string; prompt: string; workflowInstanceId: string };
 
@@ -244,7 +245,9 @@ export class TaskWorkflow extends WorkflowEntrypoint<Env, TaskWorkflowParams> {
             const bbox = geometry.bbox && typeof geometry.bbox === "object" ? geometry.bbox as Record<string, unknown> : {};
             const step = report.step && typeof report.step === "object" ? report.step as Record<string, unknown> : {};
             if (isCadInput) cadUnitStatuses.push(String(bbox.unitStatus ?? "UNCONFIRMED"));
-            lines.push(`  CADCore G02 report: status=${String(report.status)}; shapeValid=${String(geometry.shapeValid)}; solids=${String(geometry.solids)}; faces=${String(geometry.faces)}; edges=${String(geometry.edges)}; bboxSize=${JSON.stringify(bbox.size ?? null)}; unitStatus=${String(bbox.unitStatus ?? "UNCONFIRMED")}; parseStrategy=${String(step.parseStrategy ?? "unknown")}. Treat all dimensions as unit-unconfirmed; do not state mm unless source units are separately evidenced.`);
+            const unitStatus = String(bbox.unitStatus ?? "UNCONFIRMED");
+            const bboxSummary = formatCadBBoxForPrompt(bbox.size, unitStatus);
+            lines.push(`  CADCore G02 report: status=${String(report.status)}; shapeValid=${String(geometry.shapeValid)}; solids=${String(geometry.solids)}; faces=${String(geometry.faces)}; edges=${String(geometry.edges)}; bboxSize=${bboxSummary}; unitStatus=${unitStatus}; parseStrategy=${String(step.parseStrategy ?? "unknown")}. When source units are unconfirmed, raw bbox coordinates are withheld: do not invent, quote, calculate, or present any CAD-derived physical lengths/threads, even with an “unconfirmed units” caveat. Use qualitative geometry descriptions only; include topology counts only as counts.`);
           } catch {
             if (isCadInput) cadUnitStatuses.push("UNCONFIRMED");
             lines.push(`  CADCore G02 report: status=UNREADABLE; no geometry facts may be inferred from this file.`);

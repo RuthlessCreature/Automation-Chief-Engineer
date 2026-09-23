@@ -37,6 +37,7 @@
 - The generic metric restriction is intentionally fail-closed but conservative; source-backed exception handling requires a future verified claim-to-source mechanism.
 - V7 full local tests/build pass; the current Worker remains V6 until independent review and controlled production rework complete. No ZIP or quality acceptance is claimed.
 - First V7 production probe exposed a false positive: “this stage has completed” was treated as completed FAT/field validation. Local follow-up narrows the detector and adds both allowed-stage-completion and blocked-FAT regression cases; this correction is local only until redeployed.
+- The next V7 production rerun confirmed the CAD-unit guard correctly rejects bbox-derived physical lengths even when labeled “unit unconfirmed”; the model repeated those values through five attempts. New local hardening withholds raw bbox coordinates from the model when units are unconfirmed, keeps confirmed-unit values, and gives explicit repair feedback. Local tests pass; production retest remains pending.
 
 ## Removed
 

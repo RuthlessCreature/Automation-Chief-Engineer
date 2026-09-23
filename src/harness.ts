@@ -123,6 +123,9 @@ export async function runStageHarness(input: {
     feedback = [
       ...lastReasons,
       ...(placeholders.length ? [`remove unresolved placeholder tokens: ${placeholders.join(", ")}`] : []),
+      ...(lastReasons.some((reason) => reason.includes("CAD source units are unconfirmed"))
+        ? ["CAD 单位未确认时，删除全部从 CAD 坐标/bbox 推导的物理长度数值；标注“单位未确认”也不能保留该数字。不得输出任何长度、螺纹、直径或从坐标换算的尺寸/焦距/工作距离；只能定性描述几何，并把缺失的单位确认作为交接输入。"]
+        : []),
       "保留真实输入边界和待验证假设，但不得输出占位词或伪造已完成结论。",
     ];
     await input.onAttempt?.({ attempt, maxAttempts, phase: "REJECTED", reasons: lastReasons, candidate });

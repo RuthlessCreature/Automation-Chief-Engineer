@@ -136,3 +136,10 @@ This policy change makes the previously noted dedicated positive `INPUT-FILE-*` 
 | Corrected build production deployment/rework, G01 semantic audit, G04 behavior, ZIP review | NOT RUN — fix has not yet been deployed. |
 
 **Disposition:** This production iteration exposed both a working generic metric block and a validator false positive that stops G03. The current production V7 run is blocked and has no customer package; only a later controlled run can establish whether the local correction progresses without weakening unsupported-test protection.
+
+### V7 CAD-coordinate withholding follow-up — 2026-09-23
+
+- Latest deployed version `37fa6764-ebc0-4d56-b91c-489f34e2af3e` successfully reworked the same task. G00 and G01 were accepted; G03 exhausted five candidate attempts and the task ended `QUALITY_BLOCKED`. No downstream stage or ZIP exists from this run.
+- All five G03 rejection records were unit-gate rejections. The last rejected body repeated raw bbox-derived lengths (roughly 53 and 15) while caveating “unit unconfirmed”; the worker correctly refused to treat those as safe physical dimensions. The previous “stage completed” false positive did not recur after its local fix.
+- Builder's next generic revision removes unconfirmed raw bbox coordinates from model context and adds explicit bounded repair instructions; confirmed-unit values remain available. Regression covers bbox prompt formatting. Local full suite 59/59, `tsc`, Wrangler types, dry-run and diff checks pass; not yet deployed or production-tested.
+- Current production remains `QUALITY_BLOCKED`; no ZIP acceptance or Golden Sample parity is claimed.
