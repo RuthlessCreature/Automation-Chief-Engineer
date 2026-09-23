@@ -25,6 +25,11 @@
 
 - 不适用；本版本未实施代码，不能声称修复已验证缺陷。
 
+## Runtime iteration addendum — 2026-09-23
+
+- Added a generic V6 Harness gate that blocks physical length/thread claims whenever server-derived CAD input metadata reports unconfirmed units; the same 5015 production task is used only as a regression seed, not as a product-specific prompt/validator specialization.
+- A production rework is still required after deployment to establish whether MiniMax can produce safe, useful alternatives. No quality pass or ZIP acceptance is implied by the local code change.
+
 ## Removed
 
 - 不适用。

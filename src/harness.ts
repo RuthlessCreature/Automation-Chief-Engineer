@@ -44,6 +44,7 @@ export async function runStageHarness(input: {
   prompt: string;
   stage: PipelineStage;
   requiredEvidenceRefs?: readonly string[];
+  unconfirmedCadUnits?: boolean;
   maxAttempts?: number;
   onAttempt?: (attempt: StageHarnessAttempt) => Promise<void>;
 }): Promise<StageHarnessResult> {
@@ -105,7 +106,7 @@ export async function runStageHarness(input: {
       ? { ...candidate, evidence: [...new Set([...candidate.evidence, ...citedInputRefs])] }
       : candidate;
     candidate = normalizedCandidate;
-    const structural = evaluateCandidate(candidate, input.requiredEvidenceRefs);
+    const structural = evaluateCandidate(candidate, input.requiredEvidenceRefs, input.unconfirmedCadUnits);
     const comparison = structural.pass ? compareArtifactToGolden(candidate) : null;
     const reasons = [
       ...(structural.pass ? [] : structural.reasons),

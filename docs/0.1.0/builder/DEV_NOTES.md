@@ -121,3 +121,13 @@ Deployment-safety correction: the committed Worker configuration defaults to `AP
 ### Reference-derived internal process model
 
 The user directed Builder to inspect the parent directories of both golden samples. The findings and resulting product contract are recorded in [`08_INTERNAL_WORKSPACE_MODEL.md`](../08_INTERNAL_WORKSPACE_MODEL.md). Specifically, the implementation now treats handoffs, stage producer outputs, gate reports, raw evidence, build receipts, QA render pages and package-extract checks as internal first-class objects—not as disposable implementation detail and not as customer delivery files.
+
+## Generic CAD-unit evidence gate — 2026-09-23
+
+- The same production 5015 task was used as the regression seed; no product-specific model text or Golden Sample content was injected.
+- V5 run evidence showed CADCore `unitStatus=UNCONFIRMED` while the accepted vision artifact contained physical lengths/thread callouts. This was not safe to treat as a usable CAD drawing.
+- Added V6 policy plumbing from the server-derived CAD report through the stage workflow and Harness. When any input CAD unit is unconfirmed, candidate title/body claims using explicit length units, diameter symbols, or common metric thread notation are rejected before acceptance.
+- The rule is deliberately conservative across stages. It does not assert that an unconfirmed STEP is millimetres; it permits non-dimensional facts and explicit no-unit warnings. Per-file attribution and richer CAD unit extraction remain follow-up gaps.
+- Regression coverage was added for ranges/operators, multilingual units, inch units, metric threads, diameter symbols, safe warnings, stage/hash-style quantities, title-only claims, and the confirmed-unit bypass contract.
+- An independent first self-check found two P1 gaps before release: missing/unreadable CAD reports failed open, and a word-boundary pattern missed Chinese/other unit spellings. Builder changed the workflow to fail closed per CAD input and expanded unit recognition; independent recheck is still required.
+- No production deployment or successful 5015 ZIP is claimed here; these are implementation notes only.

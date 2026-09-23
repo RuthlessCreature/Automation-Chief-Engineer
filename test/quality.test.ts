@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateCandidate, findUnresolvedPlaceholders, findUnsupportedClaims, stageContractLabels } from "../src/quality";
+import { evaluateCandidate, findUnconfirmedUnitClaims, findUnresolvedPlaceholders, findUnsupportedClaims, hasUnconfirmedCadUnits, stageContractLabels } from "../src/quality";
 import { hashPassword, verifyPassword } from "../src/security";
 
 describe("independent candidate quality gate", () => {
@@ -76,6 +76,48 @@ describe("independent candidate quality gate", () => {
       body, evidence: ["INPUT-task-prompt", "RULE-G00"],
     });
     expect(decision).toEqual({ pass: true });
+  });
+
+  it("blocks physical dimensions when CAD units are unconfirmed but permits explicit no-unit warnings", () => {
+    expect(findUnconfirmedUnitClaims("划痕阈值≥0.3mm；工作距离建议120–200 mm。"))
+      .toHaveLength(2);
+    expect(findUnconfirmedUnitClaims("孔位采用 M6 螺纹、M4×0.7；外壳尺寸约 2.1 inches，孔径 Ø8。"))
+      .toHaveLength(2);
+    expect(findUnconfirmedUnitClaims("0.3毫米；涂层厚度 25 µm；整体长度 0.05 m；检具离 2 meters。"))
+      .toHaveLength(4);
+    expect(findUnconfirmedUnitClaims("半径 R5；外形 2 × 5 × 3。"))
+      .toHaveLength(2);
+    expect(findUnconfirmedUnitClaims("STEP 单位未确认，禁止标注 mm；bbox 原始值仅作坐标数据。"))
+      .toEqual([]);
+    expect(findUnconfirmedUnitClaims("G04 进度 15/15；CADCore 确认 4 solids、397 faces、2130 edges。"))
+      .toEqual([]);
+    expect(hasUnconfirmedCadUnits([])).toBe(false);
+    expect(hasUnconfirmedCadUnits(["CONFIRMED", "UNCONFIRMED"])).toBe(true);
+    expect(hasUnconfirmedCadUnits(["CONFIRMED", null])).toBe(true);
+    expect(hasUnconfirmedCadUnits(["CONFIRMED", "CONFIRMED"])).toBe(false);
+    const body = ("功能需求、性能需求和接口需求均以输入边界、风险、责任人与下一阶段交接组织。 ").repeat(18)
+      + "STEP 单位未确认，但划痕阈值≥0.3mm。";
+    const decision = evaluateCandidate({
+      id: "unit-claim", taskId: "task", stageId: "requirements", title: "需求基线", provider: "minimax", model: "m3",
+      body, evidence: ["INPUT-task-prompt", "RULE-G01"],
+    }, [], true);
+    expect(decision.pass).toBe(false);
+    if (decision.pass) throw new Error("unconfirmed CAD dimension unexpectedly passed");
+    expect(decision.reasons).toContain("CAD source units are unconfirmed; numeric physical lengths/threads must not be stated");
+
+    const unitConfirmedDecision = evaluateCandidate({
+      id: "unit-confirmed", taskId: "task", stageId: "requirements", title: "需求基线",
+      body: body.replace("STEP 单位未确认，但", "单位已由输入证据确认；"),
+      evidence: ["INPUT-task-prompt", "RULE-G01"], provider: "minimax", model: "m3",
+    });
+    expect(unitConfirmedDecision).toEqual({ pass: true });
+
+    const titleDecision = evaluateCandidate({
+      id: "unit-title-claim", taskId: "task", stageId: "product_cad", title: "M6 螺纹方案交接",
+      body: ("产品结构、接口和加工风险需依据已确认的原始几何与制造输入评估。 ").repeat(8),
+      evidence: ["INPUT-task-prompt", "RULE-G02"], provider: "minimax", model: "m3",
+    }, [], true);
+    expect(titleDecision.pass).toBe(false);
   });
 
   it("rejects a generic long paragraph that does not implement the stage contract", () => {

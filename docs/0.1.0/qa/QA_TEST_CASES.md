@@ -351,3 +351,96 @@
 - `TC-R-003`: 15-artifact Golden Comparator; MiniMax score and explicit GPT-SOL reference status. Production PASS (`REFERENCE_BASELINE`).
 - `TC-R-004`: Playwright login, task selection, checkbox isolation, Inspector update. Production PASS.
 - `TC-R-005`: transient model failure auto-retry max 2, audit, no quality-block retry. Code present; fault injection NOT RUN.
+
+## Planned generic CAD-unit regression coverage (5015 iteration; NOT EXECUTED)
+
+These eight cases are planned regression coverage informed by the 5015 experiment. They are generic CAD/evidence controls, not 5015-specific product rules. They have **not been executed**; listing them here is not PASS evidence and does not change any existing execution result.
+
+### UNIT-001: Unconfirmed CAD units block qualified physical dimensions
+
+- Priority: P1 (P0 if used for safety-critical or manufacturing release)
+- Type: Unit / Integration
+- Preconditions: CADCore input report has `unitStatus=UNCONFIRMED`; candidate gives a physical length such as `120–200 mm` and labels it an initial assumption or “to verify”.
+- Steps:
+  1. Submit the candidate to deterministic validation and independent Gate review.
+  2. Inspect candidate persistence, issue details, Gate outcome and packaging eligibility.
+- Expected Result: Candidate is rejected for the unresolved physical dimension. Qualifying it as an assumption does not permit the numeric dimension to pass. The issue identifies the claim and requires removal or authoritative unit confirmation plus supporting evidence. No Gate PASS or delivery eligibility is granted.
+
+### UNIT-002: Dimension syntax and unit variants are covered
+
+- Priority: P1 (P0 for safety-critical dimensions)
+- Type: Unit
+- Preconditions: `unitStatus=UNCONFIRMED`; candidate contains multiple physical lengths/tolerances, for example `0.3 mm`, `≤0.05mm`, ranges, and Chinese/English unit spellings.
+- Steps:
+  1. Validate each candidate variant independently, varying whitespace, comparison symbols, range syntax and unit language.
+  2. Inspect that all unsupported physical length claims are surfaced.
+- Expected Result: All unsupported physical dimensions are blocked regardless of the tested notation; no candidate containing one can receive PASS. The result must not depend on a single hard-coded field or exact unit spelling.
+
+### UNIT-003: Thread and geometric callout formats are covered
+
+- Priority: P1 (P0 where fit, load or safety depends on the callout)
+- Type: Unit
+- Preconditions: `unitStatus=UNCONFIRMED`; candidate contains thread/hole callouts such as `M6`, `M4×0.7`, `Ø8`, or `8 mm hole`.
+- Steps:
+  1. Submit each callout form to candidate validation.
+  2. Inspect validation findings and Gate outcome.
+- Expected Result: Unsupported thread and geometric size specifications are blocked, including forms without an explicit `mm` token. They cannot pass merely because the notation is a standard-looking code.
+
+### UNIT-004: Explicit no-unit warning without dimensions is permitted
+
+- Priority: P1
+- Type: Unit
+- Preconditions: `unitStatus=UNCONFIRMED`; candidate explicitly states that STEP units are unconfirmed, physical geometry is not being interpreted dimensionally, and dimensions will be provided only after confirmation; it supplies no physical size values.
+- Steps:
+  1. Submit the warning-only candidate.
+  2. Inspect this rule’s finding and the independent Gate decision.
+- Expected Result: The unit rule does not reject the warning-only statement. Other schema, evidence and quality checks still apply; the warning must not be represented as confirmed geometry or as an overall PASS by itself.
+
+### UNIT-005: Grounded dimensions with confirmed units are not overblocked
+
+- Priority: P1
+- Type: Unit / Integration
+- Preconditions: CAD evidence identifies `unitStatus=CONFIRMED`, specifies the units and source object/file, and candidate cites that evidence with a matching dimension.
+- Steps:
+  1. Submit a dimension matching the confirmed, cited CAD evidence.
+  2. Submit a second candidate with a conflicting value or mismatched evidence reference.
+- Expected Result: The matching, properly sourced claim is not rejected by the unconfirmed-unit rule; normal evidence and Gate checks remain in force. Conflicting or mismatched claims are rejected. A `CONFIRMED` label alone is insufficient evidence.
+
+### UNIT-006: Non-dimensional numeric facts and identifiers remain usable
+
+- Priority: P1
+- Type: Unit
+- Preconditions: `unitStatus=UNCONFIRMED`; candidate cites source evidence for non-dimensional facts such as input SHA-256 or CADCore solid/face/edge counts, and includes identifiers such as `G04` or `15/15`.
+- Steps:
+  1. Validate the candidate with grounded non-dimensional values and identifiers.
+  2. Add an unsupported physical dimension and repeat validation.
+- Expected Result: Grounded non-dimensional facts and workflow identifiers are not misclassified as lengths. Adding a physical dimension triggers a specific unit finding and blocks Gate PASS; unrelated grounded facts remain available for repair.
+
+### UNIT-007: Rejected dimensions cannot propagate into downstream artifacts or ZIP
+
+- Priority: P0
+- Type: Integration / E2E
+- Preconditions: A candidate with `unitStatus=UNCONFIRMED` proposes a physical dimension; downstream fixtures attempt to repeat or convert it into mechanical, BOM, process or costing artifacts.
+- Steps:
+  1. Submit and reject the source candidate.
+  2. Attempt downstream generation using that candidate/version as an input.
+  3. Attempt Chief Review and packaging; inspect provenance and manifest eligibility.
+- Expected Result: Rejected dimensions are not treated as approved facts by downstream stages. A downstream artifact repeating or deriving from the rejected claim is also blocked unless it receives valid unit evidence and approval. Chief Review/packaging cannot include these artifacts; rejection lineage is auditable.
+
+### UNIT-008: Unit confirmation is scoped to the cited CAD source
+
+- Priority: P1 (P0 if an incorrect source could affect manufacture/safety)
+- Type: Unit / Integration
+- Preconditions: Task has at least two CAD inputs, one with confirmed units and one with `UNCONFIRMED` units; candidates cite the unconfirmed source or omit which source supports a dimension.
+- Steps:
+  1. Validate a claim tied to the unconfirmed input while another input is confirmed.
+  2. Validate a claim with no source binding, then one explicitly tied to the confirmed input.
+- Expected Result: Unit state is evaluated for the specific cited file/object/version; confirmed units from one input cannot authorize dimensions from another. Missing or ambiguous source binding blocks the dimension. A properly grounded claim from the confirmed source remains subject to normal consistency checks.
+
+### Acceptance gaps for this planned coverage
+
+- Define the authoritative source and structured evidence required to establish `CONFIRMED`; a model-authored status alone is not confirmation.
+- Freeze parser coverage for physical dimensions in prose, tables and attachments, including locale-specific units, tolerances/ranges, diameter/radius symbols, thread notation and derived values. Also specify exclusions so Gate IDs, stage numbers, hashes and entity counts are not treated as lengths.
+- Verify rejection occurs before candidate acceptance and that rejected candidates remain internal/auditable but cannot enter a customer ZIP.
+- Define source binding for multiple CAD files and derived artifacts so unit status cannot leak across file, object, version or stage boundaries.
+- These are planned cases only. No execution, PASS result, production validation or ZIP-quality conclusion is claimed by this addendum.

@@ -4,13 +4,14 @@ export type QualityDecision = { pass: true } | { pass: false; reasons: readonly 
 
 export const UNRESOLVED_PLACEHOLDER_PATTERN = /(?:\bTBD\b|\bTODO\b|\bN\/A\b|待定|待补充|待填写|待回填|留待.{0,16}(?:回填|归档|生成|补充)|(?:后续|稍后).{0,10}(?:补充|回填|填写))/i;
 export const REASONING_LEAK_PATTERN = /<\/?think>|(?:^|\n)\s*(?:analysis|reasoning|思考过程)\s*:/i;
-export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V5-INPUT-FENCED";
+export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V6-UNIT-GUARD";
 
 const UNSUPPORTED_COMPLETION_PATTERN = /(?:已|已经)(?:完成|验证|测试|实测|签核|归档|出图|报价|归集|定义|写入|关闭|测得|证明|核对)|(?:已|已经)通过.{0,10}(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试)|(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试).{0,8}(?:已|已经)通过/i;
 // Quantitative claims must carry an engineering unit. Without that requirement,
 // references such as G01/G12 in a missing-input sentence were misread as values.
 const UNSUPPORTED_METRIC_PATTERN = /(?:检出率|检出准确率|误检率|漏检率|良率|OEE|产能|产量|节拍|定位精度|定位误差).{0,18}\d+(?:\.\d+)?\s*(?:%|ppm|mm|μm|um|秒|s|件|pcs)/i;
 const QUALIFIED_METRIC_CONTEXT = /(?:假设|假定|示例|目标|计划|规划|建议|预估|估算|测算|计算|基准|待验证|需验证|需确认|客户确认|未执行|未实测|未验证|不得|禁止|参考值)/i;
+const UNIT_BEARING_MEASUREMENT_PATTERN = /(?:[<>≤≥~≈±]?\s*\d+(?:\.\d+)?\s*(?:millimeters?|mm|毫米|centimeters?|cm|厘米|micrometers?|microns?|μm|µm|um|微米|nanometers?|nm|纳米|inches?|英寸|英尺|feet|foot|ft|meters?|metres?|米|mils?|mil|m)(?![a-z0-9])|\bM\d+(?:\s*[x×]\s*\d+(?:\.\d+)?)?|[Ø⌀φ]\s*\d+(?:\.\d+)?|\bR\s*=?\s*\d+(?:\.\d+)?|\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?)/i;
 
 type StageContract = { id: string; required: readonly RegExp[]; labels: readonly string[] };
 
@@ -59,7 +60,7 @@ export function findUnsupportedClaims(body: string): string[] {
 }
 
 // This gate intentionally knows nothing about provider confidence. Evidence and contract fields win.
-export function evaluateCandidate(candidate: CandidateArtifact, requiredEvidenceRefs: readonly string[] = []): QualityDecision {
+export function evaluateCandidate(candidate: CandidateArtifact, requiredEvidenceRefs: readonly string[] = [], unconfirmedCadUnits = false): QualityDecision {
   const reasons: string[] = [];
   if (!candidate.title.trim()) reasons.push("artifact title is required");
   if (candidate.body.trim().length < 120) reasons.push("artifact body is too short to be reviewable");
@@ -73,10 +74,22 @@ export function evaluateCandidate(candidate: CandidateArtifact, requiredEvidence
   const controlledText = [candidate.title, candidate.body, ...candidate.evidence].join("\n");
   if (UNRESOLVED_PLACEHOLDER_PATTERN.test(controlledText)) reasons.push("unresolved placeholder detected");
   reasons.push(...findUnsupportedClaims(candidate.body));
+  if (unconfirmedCadUnits && findUnconfirmedUnitClaims(`${candidate.title}\n${candidate.body}`).length > 0) {
+    reasons.push("CAD source units are unconfirmed; numeric physical lengths/threads must not be stated");
+  }
   if (REASONING_LEAK_PATTERN.test(controlledText)) reasons.push("model reasoning leaked into candidate");
   if (!candidate.provider || !candidate.model) reasons.push("provider provenance is required");
   if (reasons.length) return { pass: false, reasons };
   return evaluateStageDeliverable(candidate);
+}
+
+export function findUnconfirmedUnitClaims(body: string): string[] {
+  const claims = body.split(/(?<=[。！？!?；;\n])\s*/);
+  return claims.filter((sentence) => UNIT_BEARING_MEASUREMENT_PATTERN.test(sentence));
+}
+
+export function hasUnconfirmedCadUnits(unitStatuses: readonly (string | null | undefined)[]): boolean {
+  return unitStatuses.length > 0 && unitStatuses.some((status) => String(status ?? "UNCONFIRMED").toUpperCase() !== "CONFIRMED");
 }
 
 /**

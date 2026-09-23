@@ -89,6 +89,16 @@ The initial implementation supersedes the historical “NOT_IMPLEMENTED” statu
 - Cloudflare production resources are now deployed: Worker `automation-chief-engineer-cloud`, D1/R2/DO/Workflow bindings and remote migrations `0001`–`0003` are present. `https://zg.gaona.world` is bound as a Cloudflare custom domain and returned HTTPS `200` during smoke testing. This is infrastructure evidence, **not** a release approval.
 - Remote API smoke passed for registration (`201`), login (`200`) and draft creation (`201`). A start request correctly returns `503 MINIMAX_PROVIDER_NOT_CONFIGURED`, leaving the task unqueued and credits unchanged.
 - The committed default configuration is intentionally **not local**. A direct deployment uses `APP_ENV="development"`, secure session cookies and the fail-closed unconfigured MiniMax adapter; `npm run dev` is the only scripted path that enables the local fixture provider.
+
+## 5015 generic CAD-unit gate — 2026-09-23
+
+- Updated V6 Harness policy to block candidate title/body dimensions when a CAD input's units are not authoritatively confirmed. Recognized notation includes common metric/imperial lengths, micrometre/nanometre spellings, thread and pitch callouts, diameter/radius symbols, and three-axis dimension chains.
+- CAD unit uncertainty is fail-closed for recognized CAD inputs if the CAD job is absent/not successful, its R2 report is missing/unreadable, or the report omits unit status. One confirmed input cannot clear another input's uncertainty.
+- `npm test`: PASS — 11 files / 58 tests.
+- `npx tsc --noEmit`: PASS.
+- `npm run types` (`wrangler types --check`): PASS.
+- `npx wrangler deploy --dry-run`: PASS; no production deployment yet at time of this build result.
+- Independent QA has verified unit/harness focused behavior and preserved the V5 production defect evidence. CAD report failure-path integration/fault injection, V6 production deployment/rework, ZIP inspection, and Golden Sample semantic comparison remain NOT RUN; no product-quality PASS is claimed.
 # Runtime build addendum — 2026-09-18
 
 The Worker now builds and deploys the STL CADCore runner, safe preview routes, Golden Comparator, Stage Harness, retry audit schema, fault-injection drill guard, MiniMax think/Markdown JSON normalization, Customer Delivery download panel, and Playwright regression harness. Deployment evidence: Worker version `49aa4612-5bd2-47e8-9f02-58a1043f0136`; remote D1 migrations `0006_quality_cad_retry.sql`, `0007_fault_injection_drill.sql`, and `0008_retry_run_isolation.sql` applied. This deployment also adds the stage-specific delivery-contract policy, full-rebuild rework isolation, explicit-assumption placeholder normalization, a 120-second bounded MiniMax wait, failed-task manual rework, automatic CADCore preparation at workflow start, and fail-closed ZIP assembly. The original static-only result below remains historical.
