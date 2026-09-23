@@ -30,10 +30,20 @@ describe("independent candidate quality gate", () => {
     expect(findUnsupportedClaims("已通过G12试制验证予以关闭；试制样件200件、检出率99.2%、误检率0.8%。"))
       .toEqual(expect.arrayContaining([
         "unsupported completed-test claim detected",
-        "quantitative performance claim lacks an assumption or evidence qualifier",
+      "quantitative performance claim lacks an assumption or evidence qualifier",
       ]));
     expect(findUnsupportedClaims("检出率目标≥99%；当前没有实测，目标值仅作待验证假设。"))
       .toEqual([]);
+  });
+
+  it("does not treat gate identifiers in missing-input declarations as measured performance values", () => {
+    expect(findUnsupportedClaims("误检率与漏检率上限(用户未提供,需在G01冻结前确认); 当前缺少性能数据。"))
+      .toEqual([]);
+    expect(findUnsupportedClaims("样件检出率99.2%、误检率0.8%，试制验证已通过G12。"))
+      .toEqual(expect.arrayContaining([
+        "unsupported completed-test claim detected",
+        "quantitative performance claim lacks an assumption or evidence qualifier",
+      ]));
   });
 
   it("enforces unsupported-claim rules at candidate acceptance, not only as a helper", () => {

@@ -93,7 +93,7 @@ export class MiniMaxCandidateProvider implements ModelProvider {
         content: [
           "你是非标自动化方案包中的受控阶段执行体。只依据给定任务输入工作，不得编造现场验证、尺寸、性能、法规或测试结论。",
           "最终响应的第一个字符必须是 {，最后一个字符必须是 }。只允许输出单个 JSON 对象；禁止 Markdown 代码围栏、解释、标题前缀、后缀或思考过程。",
-      `JSON schema: {title:string, body:string, evidence:string[]}。body 至少 420 个汉字或等价信息量，必须包含本阶段范围、输入可追溯、假设/待验证项、风险和下一阶段交接，并完成 ${input.stage.gate} 的阶段交付契约；evidence 至少包含 INPUT-task-prompt 与一个 RULE- 前缀规则。质量策略版本：${QUALITY_POLICY_VERSION}。`,
+      `JSON schema: {title:string, body:string, evidence:string[]}。body 至少 420 个汉字或等价信息量，必须包含本阶段范围、输入可追溯、假设/待验证项、风险和下一阶段交接，并完成 ${input.stage.gate} 的阶段交付契约；evidence 至少包含 INPUT-task-prompt、用户消息要求的全部 INPUT-FILE- 引用与一个 RULE- 前缀规则。质量策略版本：${QUALITY_POLICY_VERSION}。`,
           "禁止使用 TODO、TBD、N/A、待定或空泛套话；信息不足时要明确写成待验证假设与需要的输入。候选在进入下一阶段前会经过独立硬门禁，不能用占位词交差。",
           stageContractInstructions(input.stage),
         ].join("\n"),

@@ -43,6 +43,7 @@ export async function runStageHarness(input: {
   taskId: string;
   prompt: string;
   stage: PipelineStage;
+  requiredEvidenceRefs?: readonly string[];
   maxAttempts?: number;
   onAttempt?: (attempt: StageHarnessAttempt) => Promise<void>;
 }): Promise<StageHarnessResult> {
@@ -95,7 +96,7 @@ export async function runStageHarness(input: {
       throw lastProviderError ?? new Error("MINIMAX_INVALID_RESPONSE");
     }
 
-    const structural = evaluateCandidate(candidate);
+    const structural = evaluateCandidate(candidate, input.requiredEvidenceRefs);
     const comparison = structural.pass ? compareArtifactToGolden(candidate) : null;
     const reasons = [
       ...(structural.pass ? [] : structural.reasons),

@@ -505,7 +505,7 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
     await coordinator.publish({ type: "TASK_STATE", message: "任务已排队，等待总工工作流接管。", payload: { state: "QUEUED", creditsCharged: false }, createdAt: isoNow() });
     let workflow: Awaited<ReturnType<typeof env.TASK_WORKFLOW.create>>;
     try {
-      workflow = await env.TASK_WORKFLOW.create({ id: instanceId, params: { taskId: task.id, ownerId: user.id, prompt: task.prompt } });
+      workflow = await env.TASK_WORKFLOW.create({ id: instanceId, params: { taskId: task.id, ownerId: user.id, prompt: task.prompt, workflowInstanceId: instanceId } });
     } catch (error) {
       await env.DB.prepare("UPDATE tasks SET state = 'DRAFT', workflow_instance_id = NULL, updated_at = ? WHERE id = ? AND state = 'QUEUED'")
         .bind(isoNow(), task.id)
@@ -546,7 +546,7 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
     const coordinator = env.TASK_COORDINATOR.getByName(task.id) as DurableObjectStub<TaskCoordinator>;
     await coordinator.publish({ type: "TASK_STATE", message: "任务已进入完整受控重建；历史候选已标记为拒绝，全部阶段按当前质量策略重新审查。", payload: { state: "QUEUED", rework: true, fullRebuild: true, creditsCharged: false }, createdAt: updatedAt });
     try {
-      const workflow = await env.TASK_WORKFLOW.create({ id: instanceId, params: { taskId: task.id, ownerId: user.id, prompt: task.prompt } });
+      const workflow = await env.TASK_WORKFLOW.create({ id: instanceId, params: { taskId: task.id, ownerId: user.id, prompt: task.prompt, workflowInstanceId: instanceId } });
       await env.DB.prepare("UPDATE workflow_incidents SET status = 'ACKNOWLEDGED', acknowledged_at = ?, acknowledged_by = ?, updated_at = ?, resolution_note = ? WHERE task_id = ? AND status = 'OPEN'")
         .bind(updatedAt, user.id, updatedAt, "任务所有者已启动受控返工。", task.id)
         .run();
