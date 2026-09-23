@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateCandidate, stageContractLabels } from "../src/quality";
+import { evaluateCandidate, findUnresolvedPlaceholders, findUnsupportedClaims, stageContractLabels } from "../src/quality";
 import { hashPassword, verifyPassword } from "../src/security";
 
 describe("independent candidate quality gate", () => {
@@ -19,6 +19,34 @@ describe("independent candidate quality gate", () => {
       evidence: ["INPUT-task-prompt"],
     });
     expect(decision).toEqual({ pass: false, reasons: expect.arrayContaining(["at least two traceable evidence references are required", "unresolved placeholder detected"]) });
+  });
+
+  it("rejects deferred fill-in language that evades literal TBD checks", () => {
+    expect(findUnresolvedPlaceholders("文件哈希留待归档阶段生成后回填；责任人稍后补充。"))
+      .toContain("未完成的回填占位");
+  });
+
+  it("rejects fabricated FAT and trial-performance results unless explicitly bounded", () => {
+    expect(findUnsupportedClaims("已通过G12试制验证予以关闭；试制样件200件、检出率99.2%、误检率0.8%。"))
+      .toEqual(expect.arrayContaining([
+        "unsupported completed-test claim detected",
+        "quantitative performance claim lacks an assumption or evidence qualifier",
+      ]));
+    expect(findUnsupportedClaims("检出率目标≥99%；当前没有实测，目标值仅作待验证假设。"))
+      .toEqual([]);
+  });
+
+  it("enforces unsupported-claim rules at candidate acceptance, not only as a helper", () => {
+    const body = ("功能需求、性能需求和接口需求均按输入边界形成需求工程条目；假设、风险、验证计划和下一阶段交接均可审查。 ").repeat(5)
+      + "本机试制样件200件、检出率99.2%，G12验证已通过。";
+    const decision = evaluateCandidate({
+      id: "fabricated", taskId: "task", stageId: "requirements", title: "需求基线", provider: "minimax", model: "m3",
+      body, evidence: ["INPUT-task-prompt", "RULE-G01"],
+    });
+    expect(decision.pass).toBe(false);
+    if (decision.pass) throw new Error("fabricated claim unexpectedly passed");
+    expect(decision.reasons).toContain("unsupported completed-test claim detected");
+    expect(decision.reasons).toContain("quantitative performance claim lacks an assumption or evidence qualifier");
   });
 
   it("keeps G04 repair labels aligned with the deterministic signals", () => {

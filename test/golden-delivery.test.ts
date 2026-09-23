@@ -103,8 +103,16 @@ describe("Golden-121 deterministic assets", () => {
     for (const sheet of GOLDEN_SHEETS) expect(workbook).toContain(sheet);
     expect([...files.keys()].filter((name) => /^xl\/worksheets\/sheet\d+\.xml$/.test(name))).toHaveLength(21);
     expect(files.has("xl/styles.xml")).toBe(true);
-    expect(new TextDecoder().decode(files.get("xl/worksheets/sheet3.xml")).match(/<f>/g)?.length ?? 0).toBeGreaterThanOrEqual(100);
-    expect(new TextDecoder().decode(files.get("xl/worksheets/sheet7.xml")).match(/<f>/g)?.length ?? 0).toBeGreaterThanOrEqual(100);
+    const dfmea = new TextDecoder().decode(files.get("xl/worksheets/sheet3.xml"));
+    const costModel = new TextDecoder().decode(files.get("xl/worksheets/sheet7.xml"));
+    expect(dfmea.match(/<f>/g)?.length ?? 0).toBeGreaterThanOrEqual(100);
+    expect(costModel.match(/<f>/g)?.length ?? 0).toBeGreaterThanOrEqual(100);
+    expect(dfmea).toContain("NOT_ASSESSED");
+    expect(dfmea).not.toContain("<v>5</v>");
+    expect(costModel).toContain("NOT_QUOTED");
+    expect(costModel).toContain("QUOTE_NOT_ATTACHED");
+    expect(costModel).not.toContain("COST-");
+    expect(costModel).not.toContain("<v>0</v>");
   });
 
   it("builds an OpenXML-connected 31-slide PPTX", () => {

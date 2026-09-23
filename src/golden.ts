@@ -1,5 +1,5 @@
 import type { CandidateArtifact } from "./domain";
-import { REASONING_LEAK_PATTERN, UNRESOLVED_PLACEHOLDER_PATTERN } from "./quality";
+import { findUnresolvedPlaceholders, findUnsupportedClaims, REASONING_LEAK_PATTERN, UNRESOLVED_PLACEHOLDER_PATTERN } from "./quality";
 
 export const GOLDEN_RUBRIC_VERSION = "GB-ACE-5015-V1.contract-v1";
 
@@ -67,14 +67,16 @@ export function compareArtifactToGolden(candidate: CandidateArtifact): QualityCo
   const traceability = candidate.evidence.every((item) => /^INPUT-|^RULE-/.test(item)) ? 20 : 5;
   const dishonest = /已验证通过|客户已确认|供应商已报价|FAT已完成|SAT已完成|无风险|guaranteed|已量产/i.test(body);
   const placeholders = UNRESOLVED_PLACEHOLDER_PATTERN.test(body);
+  const unsupportedClaims = findUnsupportedClaims(body);
   const reasoningLeak = REASONING_LEAK_PATTERN.test(body);
-  const honesty = dishonest || placeholders || reasoningLeak ? 0 : 20;
+  const honesty = dishonest || placeholders || unsupportedClaims.length > 0 || reasoningLeak ? 0 : 20;
   const completeness = body.length >= 320 && /假设|待验证|风险|交接|下一阶段|边界/i.test(body) ? 15 : body.length >= 120 ? 8 : 0;
   if (candidate.evidence.length < 2) issues.push("证据引用不足");
   if (engineeringHits < 3) issues.push("工程专属性不足");
   if (!candidate.evidence.every((item) => /^INPUT-|^RULE-/.test(item))) issues.push("存在不可追溯证据引用");
   if (dishonest) issues.push("出现未经证据支持的已完成/已验证表述");
   if (placeholders) issues.push("存在占位符或未决字段");
+  issues.push(...unsupportedClaims);
   if (reasoningLeak) issues.push("模型思考过程泄漏到候选产出");
   if (body.length < 320) issues.push("交付候选信息量不足");
   const minimaxScore = Math.max(0, Math.min(100, evidence + engineeringSpecificity + traceability + honesty + completeness));

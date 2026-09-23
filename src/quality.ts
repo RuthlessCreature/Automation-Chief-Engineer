@@ -2,9 +2,13 @@ import type { CandidateArtifact } from "./domain";
 
 export type QualityDecision = { pass: true } | { pass: false; reasons: readonly string[] };
 
-export const UNRESOLVED_PLACEHOLDER_PATTERN = /(?:TBD|TODO|N\/A|待定)/i;
+export const UNRESOLVED_PLACEHOLDER_PATTERN = /(?:\bTBD\b|\bTODO\b|\bN\/A\b|待定|待补充|待填写|待回填|留待.{0,16}(?:回填|归档|生成|补充)|(?:后续|稍后).{0,10}(?:补充|回填|填写))/i;
 export const REASONING_LEAK_PATTERN = /<\/?think>|(?:^|\n)\s*(?:analysis|reasoning|思考过程)\s*:/i;
-export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V3-GOLDEN-121";
+export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V4-EVIDENCE-BOUND";
+
+const UNSUPPORTED_COMPLETION_PATTERN = /(?:已|已经)(?:完成|验证|测试|实测|签核|归档|出图|报价|归集|定义|写入|关闭|测得|证明|核对)|(?:已|已经)通过.{0,10}(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试)|(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试).{0,8}(?:已|已经)通过/i;
+const UNSUPPORTED_METRIC_PATTERN = /(?:检出率|检出准确率|误检率|漏检率|良率|OEE|产能|产量|节拍|定位精度|定位误差).{0,18}\d+(?:\.\d+)?\s*(?:%|ppm|mm|μm|um|秒|s|件|pcs)?/i;
+const QUALIFIED_METRIC_CONTEXT = /(?:假设|假定|示例|目标|计划|规划|建议|预估|估算|测算|计算|基准|待验证|需验证|需确认|客户确认|未执行|未实测|未验证|不得|禁止|参考值)/i;
 
 type StageContract = { id: string; required: readonly RegExp[]; labels: readonly string[] };
 
@@ -31,8 +35,24 @@ export function stageContractLabels(stageId: string): readonly string[] {
 }
 
 export function findUnresolvedPlaceholders(body: string): string[] {
-  const matches = body.match(/TBD|TODO|N\/A|待定/gi) ?? [];
-  return [...new Set(matches.map((item) => item.toUpperCase() === "待定" ? "待定" : item.toUpperCase()))];
+  const reasons: string[] = [];
+  if (/\bTBD\b/i.test(body)) reasons.push("TBD");
+  if (/\bTODO\b/i.test(body)) reasons.push("TODO");
+  if (/\bN\/A\b/i.test(body)) reasons.push("N/A");
+  if (/待定/.test(body)) reasons.push("待定");
+  if (/待补充|待填写|待回填|留待.{0,16}(?:回填|归档|生成|补充)|(?:后续|稍后).{0,10}(?:补充|回填|填写)/i.test(body)) reasons.push("未完成的回填占位");
+  return reasons;
+}
+
+export function findUnsupportedClaims(body: string): string[] {
+  const sentences = body.split(/(?<=[。！？!?；;\n])\s*/);
+  const reasons = new Set<string>();
+  for (const sentence of sentences) {
+    const negatedOrPlanned = /(?:未执行|未完成|未验证|未测试|未实测|尚未|不得|不能|不应|禁止|计划|规划|假设|示例|建议|假装)/i.test(sentence);
+    if (UNSUPPORTED_COMPLETION_PATTERN.test(sentence) && !negatedOrPlanned) reasons.add("unsupported completed-test claim detected");
+    if (UNSUPPORTED_METRIC_PATTERN.test(sentence) && !QUALIFIED_METRIC_CONTEXT.test(sentence)) reasons.add("quantitative performance claim lacks an assumption or evidence qualifier");
+  }
+  return [...reasons];
 }
 
 // This gate intentionally knows nothing about provider confidence. Evidence and contract fields win.
@@ -46,6 +66,7 @@ export function evaluateCandidate(candidate: CandidateArtifact): QualityDecision
   }
   const controlledText = [candidate.title, candidate.body, ...candidate.evidence].join("\n");
   if (UNRESOLVED_PLACEHOLDER_PATTERN.test(controlledText)) reasons.push("unresolved placeholder detected");
+  reasons.push(...findUnsupportedClaims(candidate.body));
   if (REASONING_LEAK_PATTERN.test(controlledText)) reasons.push("model reasoning leaked into candidate");
   if (!candidate.provider || !candidate.model) reasons.push("provider provenance is required");
   if (reasons.length) return { pass: false, reasons };

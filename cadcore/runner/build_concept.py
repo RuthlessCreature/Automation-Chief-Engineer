@@ -79,58 +79,42 @@ def build(width: float, depth: float, height: float):
     add_box(builder, compound, width * 0.49, wall * 0.3, work_z + 102.0, width * 0.08, depth * 0.08, 160.0)
     add_box(builder, compound, width * 0.47, wall * 0.3, work_z + 250.0, width * 0.12, 24.0, 90.0)
 
-    # Two Y servo rails and their common tray.
-    rail_x = (width * 0.22, width * 0.72)
-    rail_y, rail_len = depth * 0.16, depth * 0.62
-    for x in rail_x:
-        add_box(builder, compound, x, rail_y, work_z, max(28.0, wall * 0.7), rail_len, 24.0)
-        add_box(builder, compound, x + 4.0, rail_y + 20.0, work_z + 24.0, max(20.0, wall * 0.5), rail_len - 40.0, 18.0)
-        for y in (rail_y + 55.0, rail_y + rail_len - 55.0):
-            add_cylinder(builder, compound, x + wall * 0.35, y, work_z + 42.0, 13.0, 18.0)
-    add_box(builder, compound, width * 0.15, rail_y + rail_len * 0.18, work_z + 48.0, width * 0.73, rail_len * 0.64, 20.0)
+    # One serviceable inspection station (not a transfer line or multi-nest
+    # automation cell): manual-load tray, fixed datum nest and a single camera
+    # with coaxial/ring-light envelope. Only generic interfaces are modeled.
+    table_w, table_d = width * 0.58, depth * 0.48
+    table_x, table_y = (width - table_w) / 2, depth * 0.18
+    table_z = work_z
+    add_box(builder, compound, table_x, table_y, table_z, table_w, table_d, plate)
+    nest_w, nest_d = min(width * 0.24, 180.0), min(depth * 0.22, 140.0)
+    nest_x, nest_y = (width - nest_w) / 2, table_y + (table_d - nest_d) / 2
+    add_box(builder, compound, nest_x - 20.0, nest_y - 18.0, table_z + plate, nest_w + 40.0, nest_d + 36.0, 16.0)
+    add_box(builder, compound, nest_x, nest_y, table_z + plate + 16.0, nest_w, nest_d, 12.0)
+    # Datum stops and low-profile manual clamps; no unsupported pneumatic axis.
+    for x, y, dx, dy in ((nest_x - 8.0, nest_y, 8.0, nest_d), (nest_x + nest_w, nest_y, 8.0, nest_d), (nest_x, nest_y - 8.0, nest_w, 8.0)):
+        add_box(builder, compound, x, y, table_z + plate + 28.0, dx, dy, 20.0)
+    for x in (nest_x + 18.0, nest_x + nest_w - 30.0):
+        add_box(builder, compound, x, nest_y - 34.0, table_z + plate + 34.0, 12.0, 42.0, 8.0)
 
-    # Four stations: 2-up fixture plates, product nests, probe beds, clamps,
-    # floating pneumatic heads and Hall/load interface brackets.
-    nest_w = max(70.0, min(width * 0.18, 190.0))
-    nest_d = max(58.0, min(depth * 0.16, 150.0))
-    nest_z = work_z + 68.0
-    station_x = (width * 0.28, width * 0.58)
-    station_y = (rail_y + rail_len * 0.25, rail_y + rail_len * 0.62)
-    for sx in station_x:
-        for sy in station_y:
-            px, py = sx - nest_w * 0.55, sy - nest_d * 0.62
-            add_box(builder, compound, px, py, work_z + 48.0, nest_w * 1.35, nest_d * 1.55, 20.0)
-            add_box(builder, compound, px + 7.0, py + 7.0, nest_z, nest_w, nest_d, 12.0)
-            for bx, by, dx, dy in ((px - 8.0, py + 4.0, 8.0, nest_d + 6.0), (px + nest_w + 2.0, py + 4.0, 8.0, nest_d + 6.0), (px + 4.0, py - 8.0, nest_w + 6.0, 8.0), (px + 4.0, py + nest_d + 2.0, nest_w + 6.0, 8.0)):
-                add_box(builder, compound, bx, by, nest_z + 12.0, dx, dy, 24.0)
-            add_box(builder, compound, px + 15.0, py + 15.0, work_z + 22.0, nest_w - 30.0, nest_d - 30.0, 20.0)
-            for cx, cy in ((px + 14.0, py + 14.0), (px + nest_w - 14.0, py + 14.0), (px + 14.0, py + nest_d - 14.0), (px + nest_w - 14.0, py + nest_d - 14.0)):
-                add_cylinder(builder, compound, cx, cy, nest_z + 28.0, 6.0, 18.0)
+    # Fixed inspection head above the datum nest: camera barrel, lens and ring
+    # light are represented as envelopes only; optical performance is unverified.
+    head_x, head_y = width / 2, nest_y + nest_d / 2
+    head_top = min(height - wall * 2.0, table_z + height * 0.30)
+    head_bottom = table_z + plate + 170.0
+    add_box(builder, compound, head_x - 90.0, head_y - 70.0, head_top, 180.0, 140.0, 70.0)
+    add_cylinder(builder, compound, head_x, head_y, head_bottom + 95.0, 42.0, head_top - head_bottom - 95.0)
+    add_cylinder(builder, compound, head_x, head_y, head_bottom + 65.0, 30.0, 30.0)
+    add_cylinder(builder, compound, head_x, head_y, head_bottom + 45.0, 56.0, 12.0)
 
-            # Pneumatic floating head assembly.
-            tool_x, tool_y = sx + nest_w * 0.12, sy + nest_d * 0.1
-            upper_z = min(height - 240.0, work_z + 370.0)
-            add_cylinder(builder, compound, tool_x, tool_y, upper_z, 24.0, 150.0)
-            add_cylinder(builder, compound, tool_x, tool_y, upper_z - 42.0, 10.0, 48.0)
-            add_box(builder, compound, tool_x - 42.0, tool_y - 36.0, upper_z - 58.0, 84.0, 72.0, 18.0)
-            add_box(builder, compound, tool_x - 54.0, tool_y - 47.0, upper_z + 150.0, 108.0, 94.0, 20.0)
-            add_box(builder, compound, tool_x - 64.0, tool_y - 57.0, upper_z + 170.0, 10.0, 114.0, 90.0)
-            add_box(builder, compound, tool_x + 54.0, tool_y - 57.0, upper_z + 170.0, 10.0, 114.0, 90.0)
+    # Manual infeed/outfeed surfaces and physically distinct OK/NG collection bins.
+    add_box(builder, compound, width * 0.08, table_y + table_d * 0.24, table_z - 35.0, width * 0.26, table_d * 0.48, 14.0)
+    add_box(builder, compound, width * 0.66, table_y + table_d * 0.24, table_z - 35.0, width * 0.26, table_d * 0.48, 14.0)
+    bin_z = base_z + plate + 5.0
+    for x in (width * 0.63, width * 0.78):
+        add_box(builder, compound, x, depth * 0.10, bin_z, width * 0.11, depth * 0.14, 120.0)
 
-            # Hall/load interface and adjustable bracket.
-            add_box(builder, compound, px + nest_w * 0.72, py + nest_d * 0.32, nest_z + 30.0, 42.0, 28.0, 58.0)
-            add_cylinder(builder, compound, px + nest_w * 0.88, py + nest_d * 0.47, nest_z + 52.0, 9.0, 34.0)
-            add_box(builder, compound, px + nest_w * 0.83, py + nest_d * 0.18, nest_z + 25.0, 18.0, 70.0, 12.0)
-
-    # Cable chains and pneumatic manifold.
-    for x in (width * 0.18, width * 0.82):
-        add_box(builder, compound, x, rail_y - 24.0, work_z - 8.0, 28.0, rail_len + 48.0, 16.0)
-        for y in (rail_y + 30.0, rail_y + rail_len * 0.33, rail_y + rail_len * 0.66, rail_y + rail_len - 30.0):
-            add_box(builder, compound, x - 4.0, y, work_z + 18.0, 36.0, 12.0, 22.0)
-    manifold_x, manifold_y = width * 0.76, depth - depth * 0.22
-    for i in range(4):
-        add_cylinder(builder, compound, manifold_x + i * 32.0, manifold_y, height * 0.62, 12.0, 56.0)
-        add_box(builder, compound, manifold_x - 14.0 + i * 32.0, manifold_y - 18.0, height * 0.62 - 10.0, 28.0, 36.0, 10.0)
+    # Simple cable tray and pneumatic service rail are kept to the perimeter.
+    add_box(builder, compound, wall * 1.2, depth - wall * 1.8, work_z - 8.0, width - wall * 2.4, 24.0, 18.0)
 
     # Front safety light curtain: two posts, top beam and emitter blocks.
     curtain_z, front_y = min(height * 0.86, height - wall), max(0.0, depth * 0.04)
