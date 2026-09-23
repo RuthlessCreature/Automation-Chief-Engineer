@@ -42,15 +42,27 @@ describe("stage harness", () => {
   });
 
   it("blocks after the bounded repair budget instead of returning a dirty candidate", async () => {
+    const rejected: CandidateArtifact[] = [];
     const provider: ModelProvider = {
       name: "fixture",
       async generateCandidate(input) {
         return candidate(`${validBody}\n字段：待定（第 ${input.attempt} 次）`, input.attempt ?? 1);
       },
     };
-    const result = await runStageHarness({ provider, taskId: "task-harness", prompt: "建立产品 CAD 受控输入和 BREP 检验边界。", stage });
+    const result = await runStageHarness({
+      provider,
+      taskId: "task-harness",
+      prompt: "建立产品 CAD 受控输入和 BREP 检验边界。",
+      stage,
+      onAttempt: (attempt) => {
+        if (attempt.phase === "REJECTED" && attempt.candidate) rejected.push(attempt.candidate);
+        return Promise.resolve();
+      },
+    });
     expect(result).toMatchObject({ status: "QUALITY_BLOCKED", attempts: 3 });
     expect((result as { reasons: string[] }).reasons.join(" ")).toContain("unresolved placeholder detected");
+    expect(rejected).toHaveLength(3);
+    expect(rejected.every((item) => item.body.includes("待定"))).toBe(true);
   });
 
   it("retries provider-format failures without spending the quality repair budget", async () => {

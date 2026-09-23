@@ -262,11 +262,36 @@ export class TaskWorkflow extends WorkflowEntrypoint<Env, TaskWorkflowParams> {
         prompt: payload.prompt,
         stage,
         onAttempt: async (attempt) => {
+          let rejectedArtifactId: string | null = null;
+          if (attempt.phase === "REJECTED" && attempt.candidate) {
+            const rejected = attempt.candidate;
+            rejectedArtifactId = `${rejected.id}-rejected`;
+            const storageKey = `tasks/${payload.taskId}/rejected/${stage.id}/${rejectedArtifactId}.md`;
+            const content = renderArtifact(rejected, stage);
+            const hash = await sha256(content);
+            await this.env.ARTIFACTS.put(storageKey, content, {
+              httpMetadata: { contentType: "text/markdown; charset=utf-8" },
+              customMetadata: { taskId: payload.taskId, stageId: stage.id, sha256: hash, provider: rejected.provider, model: rejected.model },
+            });
+            await this.env.DB.prepare(
+              "INSERT OR IGNORE INTO artifacts (id, task_id, stage_id, kind, title, storage_key, sha256, status, provenance_json, created_at, visibility) VALUES (?, ?, ?, ?, ?, ?, ?, 'REJECTED', ?, ?, 'INTERNAL')",
+            ).bind(
+              rejectedArtifactId,
+              payload.taskId,
+              stage.id,
+              "rejected_candidate",
+              rejected.title,
+              storageKey,
+              hash,
+              JSON.stringify({ provider: rejected.provider, model: rejected.model, gate: stage.gate, rejectionReasons: attempt.reasons ?? [] }),
+              isoNow(),
+            ).run();
+          }
           await coordinator.publish({
             type: "HARNESS_ATTEMPT",
             stageId: stage.id,
             message: `${stage.agent} Harness 第 ${attempt.attempt}/${attempt.maxAttempts} 次${attempt.phase === "GENERATING" ? "生成候选" : attempt.phase === "PROVIDER_RETRY" ? "模型响应格式异常，技术重试（不消耗质量返修次数）" : attempt.phase === "ACCEPTED" ? "通过独立门禁" : "未通过，准备修复"}`,
-            payload: { phase: attempt.phase, attempt: attempt.attempt, maxAttempts: attempt.maxAttempts, reasons: attempt.reasons?.join(" | ") ?? null },
+            payload: { phase: attempt.phase, attempt: attempt.attempt, maxAttempts: attempt.maxAttempts, reasons: attempt.reasons?.join(" | ") ?? null, rejectedArtifactId },
             createdAt: isoNow(),
           });
         },

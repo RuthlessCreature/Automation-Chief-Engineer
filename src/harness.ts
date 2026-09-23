@@ -27,6 +27,8 @@ export type StageHarnessAttempt = {
   maxAttempts: number;
   phase: "GENERATING" | "PROVIDER_RETRY" | "REJECTED" | "ACCEPTED";
   reasons?: readonly string[];
+  /** Internal-only diagnostic. The workflow persists it as REJECTED, never as deliverable evidence. */
+  candidate?: CandidateArtifact;
 };
 
 /**
@@ -112,7 +114,7 @@ export async function runStageHarness(input: {
       ...(placeholders.length ? [`remove unresolved placeholder tokens: ${placeholders.join(", ")}`] : []),
       "保留真实输入边界和待验证假设，但不得输出占位词或伪造已完成结论。",
     ];
-    await input.onAttempt?.({ attempt, maxAttempts, phase: "REJECTED", reasons: lastReasons });
+    await input.onAttempt?.({ attempt, maxAttempts, phase: "REJECTED", reasons: lastReasons, candidate });
   }
 
   return { status: "QUALITY_BLOCKED", reasons: lastReasons, attempts: maxAttempts };
