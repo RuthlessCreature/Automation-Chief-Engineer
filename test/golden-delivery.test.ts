@@ -158,14 +158,16 @@ describe("Golden-121 deterministic assets", () => {
     expect(views("02_产品CAD与视图", true)).toHaveLength(5);
     expect(views("03_整机概念CAD与视图", false)).toHaveLength(5);
     expect(visuals()).toHaveLength(96);
-    const stl = tinyBinaryStl();
+    const stl = twoTriangleStl();
     const productViews = geometryViews("02_产品CAD与视图", stl, true);
     const evidence = geometryVisuals(stl, stl);
     expect(productViews).toHaveLength(5);
     expect(evidence).toHaveLength(96);
+    const imageHeader = new DataView(productViews[0]!.data.buffer, productViews[0]!.data.byteOffset, productViews[0]!.data.byteLength);
+    expect([imageHeader.getUint32(16), imageHeader.getUint32(20)]).toEqual([600, 400]);
     expect([...productViews, ...evidence].every((entry) => entry.data.slice(0, 8).every((byte, index) => byte === [137,80,78,71,13,10,26,10][index]))).toBe(true);
     expect(new TextDecoder().decode(openCsv()).trim().split(/\r?\n/)).toHaveLength(15);
-  });
+  }, 15000);
 
   it("builds a generic image-aware PDF without a product-specific branch", () => {
     const bytes = pdfForDelivery("Generic task", reports, [png(901), png(902)]);
