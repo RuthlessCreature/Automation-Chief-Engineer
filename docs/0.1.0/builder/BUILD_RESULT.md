@@ -206,3 +206,8 @@ The Worker now builds and deploys the STL CADCore runner, safe preview routes, G
 
 - G02 report/BREP rows now upsert on the existing `(task_id, stage_id, storage_key)` key. Only a prior BLOCKED job carrying the exact database artifact-conflict error is resumable; actual parse/geometry failures remain blocked.
 - V22 local verification: focused Python parser tests 3/3; full suite 66/66; TypeScript/Wrangler types/deploy dry-run/diff check PASS. Production deployment and same-task rework pending; no quality pass or ZIP is claimed.
+
+### V23 intake blocker guard — 2026-09-24
+
+- V22 same-task production run refreshed G02 and accepted G00 despite the G00 report declaring M01–M10 product inputs missing and explicitly blocking G01. The pipeline nevertheless started G01.
+- V23 rejects any G00 candidate that declares unresolved mandatory inputs blocking downstream. Local focused tests 15/15 and full suite 67/67 PASS; Wrangler types, TypeScript, deploy dry-run, and `git diff --check` PASS. Production deploy and same-task retest pending.

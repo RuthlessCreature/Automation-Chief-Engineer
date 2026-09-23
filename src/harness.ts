@@ -59,6 +59,9 @@ export async function runStageHarness(input: {
     input.requiredEvidenceRefs?.length
       ? `必须逐字引用以下服务端核验的输入 ID：${input.requiredEvidenceRefs.join(", " )}。每个 ID 都要同时出现在 body 的“输入可追溯”段和 evidence 数组；若未引用任何一个，候选会被阻断。不得改写、缩写或猜测 ID。`
       : "",
+    input.stage.id === "intake"
+      ? "G00输入完整性硬约束：若本报告将某个已缺失输入声明为阻断G01/下游的前置条件，就不得同时提交G00 PASS；只有从受控输入证据闭合该条件后才可通过。不得把列有未提供的关键准则、再写‘下一阶段不得启动’的阻断报告当成已通过的G00产物。"
+      : "",
     input.stage.id === "bom_cost"
       ? input.trustedQuoteEvidenceRefs?.length
         ? `BOM 商务证据约束：只有这些由服务端按报价/采购来源元数据识别的输入可支持具体供应商、品牌、型号、料号或价格：${input.trustedQuoteEvidenceRefs.join(", ")}。每条此类结论须在同一句引用对应原始 ID；其余输入不能证明报价。不得用估算、行业中位价或常识替代报价。`
@@ -142,6 +145,9 @@ export async function runStageHarness(input: {
       ...(placeholders.length ? [`remove unresolved placeholder tokens: ${placeholders.join(", ")}`] : []),
       ...(lastReasons.some((reason) => reason.includes("CAD source units are unconfirmed"))
         ? ["CAD 单位未确认：删除全部从 CAD 坐标/bbox 推导的物理长度数值；标注“单位未确认”也不能保留该数字。不得把 STEP 假定为 mm/inch/任何单位，不得用“单位假设”规避。不得输出任何长度、螺纹、直径或从坐标换算的尺寸/焦距/工作距离；只能定性描述几何，并明确该单位依赖结论已阻断。"]
+        : []),
+      ...(lastReasons.some((reason) => reason.startsWith("G00 declares missing inputs"))
+        ? ["G00门禁冲突：正文明确声明缺失输入阻断下游，因此不可标记通过。仅可基于已有受控来源真实补齐，或保持任务阻断；不得删除缺失事实来规避Gate，也不得向下游转交待办清单。"]
         : []),
       ...(lastReasons.some((reason) => reason.startsWith("missing required source reference:"))
         ? [`修复输入追溯：将每个服务端必需引用 ${input.requiredEvidenceRefs?.join(", ") ?? ""} 原样写入 body 的“输入可追溯”段和 evidence 数组；不可漏引或改写。`]

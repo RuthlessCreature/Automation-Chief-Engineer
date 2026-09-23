@@ -4,7 +4,7 @@ export type QualityDecision = { pass: true } | { pass: false; reasons: readonly 
 
 export const UNRESOLVED_PLACEHOLDER_PATTERN = /(?:\bTBD\b|\bTODO\b|\bN\/A\b|待定|待补充|待填写|待回填|留待.{0,16}(?:回填|归档|生成|补充)|(?:后续|稍后).{0,10}(?:补充|回填|填写))/i;
 export const REASONING_LEAK_PATTERN = /<\/?think>|(?:^|\n)\s*(?:analysis|reasoning|思考过程)\s*:/i;
-export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V22-IDEMPOTENT-CAD-REFRESH";
+export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V23-INTAKE-BLOCKER-ENFORCEMENT";
 
 const UNSUPPORTED_COMPLETION_PATTERN = /(?:已|已经)(?:测试|实测|签核|归档|出图|报价|归集|定义|写入|关闭|测得|证明|核对)|(?:已|已经)验证.{0,10}(?:性能|功能|指标|准确率|节拍|验收|样件|缺陷|检测结果)|(?:已|已经)完成.{0,12}(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试|实测|测量|签核)|(?:已|已经)通过.{0,10}(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|测试|实测|测量)|(?:已|已经)通过.{0,10}(?<!待)验证|(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试).{0,8}(?:已|已经)通过/i;
 // Quantitative claims must carry an engineering unit. Without that requirement,
@@ -15,6 +15,7 @@ const QUALIFIED_METRIC_CONTEXT = /(?:假设|假定|示例|目标|计划|规划|�
 const UNSOURCED_DEFAULT_METRIC_PATTERN = /(?:行业(?:典型|常用|惯例)|业内(?:典型|常用)|缺省|默认|经验值).{0,60}\d+(?:\.\d+)?\s*(?:%|ppm|mm|μm|µm|um|秒|s|件|pcs|OEE)?/i;
 const UNRESOLVED_OPTION_PATTERN = /(?:\bN\b|\bX\b)\s*(?:待|由.{0,12}(?:确定|确认|冻结|选定))|(?:任选其一|二选一|三选一|待选型|待方案确定|任一均可|任意一种|可任选|均可|待用户选择|中选取|择一|候选方案)|(?:接口|选型|触发|光源|相机|控制|方案|方式|基线|规格|协议|夹紧|支承|图像输出)\s*(?::|：|为|采用|以|选择|选用)[^。；;\n]{0,24}(?:或|\/)[^。；;\n]{0,20}(?:为基线|作为基线|均可|由.{0,12}(?:决定|确定|确认)|待|需确认|不下结论|中选取|作为|选择)/i;
 const DEFERRED_WORK_PATTERN = /(?:待(?:验证|确认|测绘|定标|用户|客户|现场|补齐|回填|闭环|实测|选择|确定)|(?:需|需要)(?:用户|客户|现场).{0,18}(?:提供|确认|选择|验证|实测)|(?:由用户|客户).{0,18}(?:提供|确认)|(?:后续|下一阶段|后续阶段|G\d{2}).{0,24}(?:待|需.{0,8}(?:确认|提供|验证|闭环|定标|选型)|必须.{0,8}(?:确认|闭环)|确认后|验证后)|(?:需|需要).{0,8}(?:后续|下一阶段|后续阶段|G\d{2}).{0,12}(?:确认|闭环|补齐|定标|选型|验证|提供|实测)|(?:未确认|未冻结|未锁定|尚未确定|不下结论))/i;
+const INTAKE_DOWNSTREAM_BLOCKER_PATTERN = /(?:下游|下一阶段|后续阶段).{0,45}(?:不得|禁止|不能|无法).{0,18}(?:启动|推进|生成|形成|交付)|(?:G00|G\d{2}).{0,24}(?:闸门|Gate).{0,20}(?:直接|必须|应当|将)?\s*阻断/i;
 const UNIT_BEARING_MEASUREMENT_PATTERN = /(?:[<>≤≥~≈±]?\s*\d+(?:\.\d+)?\s*(?:millimeters?|mm|毫米|centimeters?|cm|厘米|micrometers?|microns?|μm|µm|um|微米|nanometers?|nm|纳米|inches?|英寸|英尺|feet|foot|ft|meters?|metres?|米|mils?|mil|m)(?![a-z0-9])|\bM\d+(?:\s*[x×]\s*\d+(?:\.\d+)?)?|[Ø⌀φ]\s*\d+(?:\.\d+)?|\bR\s*=?\s*\d+(?:\.\d+)?(?![\d\-–—:：])|\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?)/i;
 const RAW_COORDINATE_DIMENSION_PATTERN = /(?:尺寸|长度|宽度|高度|厚度|边长|直径|半径|工作距离|视场|bbox|坐标|缺陷.{0,5}尺寸).{0,25}[<>≤≥~≈±]?\s*\d+(?:\.\d+)?(?:\s*[~～–—-]\s*\d+(?:\.\d+)?)?\s*(?:units?|单位|坐标单位)(?![a-z0-9])/i;
 const UNCONFIRMED_UNIT_ASSUMPTION_PATTERN = /(?:(?:假设|暂按|默认|认定|推定).{0,35}(?:STEP|CAD|模型|几何|图纸)?.{0,15}(?:单位|unit).{0,20}(?:毫米|millimeters?|mm|厘米|centimeters?|cm|英寸|inches?|米|meters?|metres?|m)(?![a-z0-9])|(?:STEP|CAD|模型|几何|图纸).{0,15}(?:单位|unit).{0,12}(?:暂按|假设|默认|认定|推定).{0,12}(?:毫米|millimeters?|mm|厘米|centimeters?|cm|英寸|inches?|米|meters?|metres?|m)(?![a-z0-9]))/i;
@@ -87,6 +88,9 @@ export function evaluateCandidate(candidate: CandidateArtifact, requiredEvidence
   }
   const controlledText = [candidate.title, candidate.body, ...candidate.evidence].join("\n");
   if (findUnresolvedPlaceholders(controlledText).length > 0) reasons.push("unresolved placeholder detected");
+  if (candidate.stageId === "intake" && INTAKE_DOWNSTREAM_BLOCKER_PATTERN.test(candidate.body)) {
+    reasons.push("G00 declares missing inputs that block downstream; intake cannot pass while that blocker remains open");
+  }
   reasons.push(...findUnsupportedClaims(candidate.body));
   if (candidate.stageId === "bom_cost") {
     reasons.push(...findUnsupportedCommercialClaims(candidate.body, trustedQuoteEvidenceRefs));

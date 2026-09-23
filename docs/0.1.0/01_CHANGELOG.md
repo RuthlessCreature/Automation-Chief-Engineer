@@ -90,6 +90,12 @@
 - V21 production attempt confirmed legacy report regeneration uses an existing canonical CAD job, but output artifact inserts collided with the unique artifact storage-key constraint.
 - V22 upserts the existing G02 report and normalized BREP artifact rows, and permits recovery of the CAD job row only when the stored blocker is that exact artifact-key conflict. Other CAD parse blockers remain fail-closed.
 - V22 verification: focused Python parser tests 3/3; full suite 66/66; TypeScript/Wrangler types/deploy dry-run/diff check PASS. Production deploy and same-task replay pending.
+
+### V23 enforce intake-declared blockers — 2026-09-24
+
+- V22 production replay refreshed CADCore successfully and G00 passed, but its report listed M01–M10 required product/quality inputs as missing and explicitly said G01 must not start until they are supplied. The workflow nevertheless launched G01. This is a pipeline-control defect, not a model-quality pass.
+- V23 adds a deterministic G00 guard: a candidate cannot be accepted while its own intake report declares unresolved inputs that block downstream stages. Harness now treats this as a hard stop rather than a handoff instruction.
+- V23 local verification: focused quality tests 15/15; complete suite 67/67; generated Wrangler types, TypeScript, Wrangler deploy dry-run, and `git diff --check` PASS. Independent QA review and production deploy/retest remain pending. Current task is still running the V22 workflow at G01; it is not a final deliverable.
 # Runtime completion update — 2026-09-18
 
 - Added production STL-to-BREP CADCore path with ASCII/Binary STL geometry facts and normalized BREP output.

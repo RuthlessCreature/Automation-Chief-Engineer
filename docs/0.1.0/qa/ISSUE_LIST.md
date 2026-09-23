@@ -95,3 +95,24 @@
 
 The four visual prototype issues below are historical static-review findings. Runtime equivalents are now guarded by server-side state/preview predicates and covered by the completion evidence. They are not deleted because the original visual artifacts remain historical evidence.
 
+## ISSUE-005: G00 passes while its own accepted report says missing mandatory inputs block G01
+
+- Status: OPEN
+- Severity: Blocker
+- Module: Workflow Gate / G00 intake quality acceptance
+- Related Test Case: 5015 V23 intake blocker regression
+- Environment: Production Worker V22, task `2b98d2bb-52cf-471d-ad6f-9a2c309a06c3`, workflow instance `task-2b98d2bb-52cf-471d-ad6f-9a2c309a06c3-rework-d8253ec5-0c02-4e04-8b84-f86d5ad31288`
+- Preconditions: Rework the existing 5015 task after V22 deployment and inspect persisted G00 artifact, Gate events, and workflow stage events.
+- Steps to Reproduce:
+  1. Retrieve accepted G00 candidate `2b98d2bb-52cf-471d-ad6f-9a2c309a06c3-intake-candidate-ad5dfb08-efe4-48f8-8a75-7add88a43b6d`.
+  2. Read its missing-input section: M01–M10 are missing and any missing item prevents compliant G01/downstream work.
+  3. Read its handoff instruction: G01 must not start until those items are provided.
+  4. Compare with persisted events: G00 recorded PASS and G01 started.
+- Expected Result: G00 cannot pass if its own candidate declares a mandatory unresolved input that blocks downstream; the task remains explicitly blocked, and no G01 event is emitted.
+- Actual Result: Candidate persisted as accepted / G00 pass and G01 started despite the candidate’s explicit blocking condition.
+- Evidence: Production accepted candidate body and event sequence `1527` G00 gated followed by `1528` G01 started; same-task workflow is still active at G01 under V22.
+- Impact: The pipeline violates the hard quality contract and can produce a false sense of controlled progression. Downstream work based on known missing requirements cannot qualify for delivery.
+- Suspected Cause: Candidate validation rejects literal TBD/unresolved markers but does not interpret the candidate’s explicit “missing inputs block downstream” conclusion as contradictory to G00 PASS.
+- Recommendation: Add a deterministic, server-side G00 blocker contradiction check and repair feedback; only allow PASS after controlled source evidence actually closes the declared blocker. Otherwise stay blocked; do not remove missing facts or fabricate closure.
+- Regression Test Needed: Yes — exact production wording plus positive case where a blocker is demonstrably closed from controlled evidence.
+

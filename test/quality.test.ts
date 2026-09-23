@@ -46,6 +46,16 @@ describe("independent candidate quality gate", () => {
     expect(decision).toEqual({ pass: false, reasons: expect.arrayContaining(["unresolved placeholder detected"]) });
   });
 
+  it("does not pass G00 when its own report declares that missing inputs block downstream", () => {
+    const decision = evaluateCandidate({
+      id: "intake-blocker", taskId: "task", stageId: "intake", title: "输入完整性报告", provider: "minimax", model: "m3",
+      body: ("输入完整性清单和任务追溯记录已经生成，来源与缺失项登记可逐条审查。 ").repeat(8)
+        + "M01至M10任一项缺失均使下游G01及后续阶段无法形成合规候选，由G00闸门直接阻断。",
+      evidence: ["INPUT-task-prompt", "RULE-G00"],
+    });
+    expect(decision).toEqual({ pass: false, reasons: expect.arrayContaining(["G00 declares missing inputs that block downstream; intake cannot pass while that blocker remains open"]) });
+  });
+
   it("rejects fabricated FAT and trial-performance results unless explicitly bounded", () => {
     expect(findUnsupportedClaims("本阶段已完成：系统架构描述、风险清单和G04交接清单。"))
       .toEqual([]);

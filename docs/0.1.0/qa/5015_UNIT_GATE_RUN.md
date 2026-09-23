@@ -215,3 +215,18 @@ Disposition: the latest production task is blocked in G01. The numeric requireme
 - The uploaded STEP is `Radial-Cooling-Fan-5015-DC12V.STEP` and contains 11 consistent explicit `.MILLI., .METRE.` assignments. V20 adds conservative STEP SI unit parsing plus legacy-report refresh; Python parser tests pass 3/3, full suite 66/66, TypeScript/Wrangler types/deploy dry-run/diff check pass. CADCore inspection of this exact upload reports schema `cadcore-g02-0.1.1`, unit `mm`, `shapeValid=true`, 4 solids, 397 faces and 2130 edges. Worker `6bcf7801-52cb-4bef-8971-d1a40516a4e7` deployed; same-task replay failed before G00 on the unique `cad_jobs` row constraint (automatic retries exhausted, no credits charged).
 - V21 reuses the canonical job row instead of inserting a duplicate during legacy STEP report regeneration; however production then failed on the unique G02 artifact storage-key constraint before G00.
 - V22 upserts the G02 report/BREP artifact rows and only resumes the canonical cad_job for that exact database conflict. Local verification: Python 3/3, full suite 66/66, TypeScript/Wrangler types/deploy dry-run/diff check PASS. Production replay pending; no PASS or ZIP.
+
+### V23 intake blocker regression — 2026-09-24
+
+**Observed production contradiction:** In the V22 replay of task `2b98d2bb-52cf-471d-ad6f-9a2c309a06c3`, the accepted G00 candidate states that M01–M10 are missing, that any missing item prevents a compliant G01/downstream candidate, and that G01 must not start until all items are supplied. The persisted workflow nevertheless emitted `G00` pass and started G01. This is a production Gate-control FAIL. The run remains on the V22 workflow instance; it is not evidence of a V23 fix or product-quality acceptance.
+
+| V23 check | Result | Evidence |
+|---|---|---|
+| Exact production contradiction regression | PASS (local) | `test/quality.test.ts` asserts the quoted M01–M10 / G00-blocker wording is rejected by `evaluateCandidate()` for `stageId=intake`. |
+| Focused quality tests | PASS | `npm test -- --run test/quality.test.ts`: 1 file, 15/15 tests passed. |
+| Complete local suite | PASS | `npm run check`: 12 files, 67/67 tests passed; includes Wrangler types, TypeScript, and Wrangler deploy dry-run. |
+| Independent QA review | PENDING | Separate QA Executor review requested; no independent result claimed yet. |
+| V23 production deploy and same-task replay | NOT RUN | The V22 workflow is still active at G01. A fresh rework will use the same task ID only after this active instance reaches a terminal state or is safely superseded. |
+| Full candidate semantics / Golden parity / customer ZIP | NOT RUN | No quality PASS, complete artifact review, accepted ZIP, or Golden Sample parity is claimed. |
+
+**QA disposition:** The V22 production behavior is a confirmed P1 Gate-control defect. Keep delivery blocked. The V23 local test does not close it until the deployed V23 policy rejects the exact blocker pattern and the same 5015 task is replayed under the new policy.
