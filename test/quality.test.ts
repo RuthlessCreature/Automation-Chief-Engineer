@@ -39,6 +39,8 @@ describe("independent candidate quality gate", () => {
       .toEqual([]);
     expect(findUnsupportedClaims("未输出任何 CAD 派生长度或已完成测试结论。"))
       .toEqual([]);
+    expect(findUnsupportedClaims("本阶段已按 G00 契约完成输入清点，未声明任何已完成测试。"))
+      .toEqual([]);
     expect(findUnsupportedClaims("电气接口：预留 24V 数字 IO 用于安全门与报警。"))
       .toContain("quantified engineering specification lacks a source or explicit assumption");
     expect(findUnsupportedClaims("电气接口电压暂按 24V 设计，待客户确认。"))

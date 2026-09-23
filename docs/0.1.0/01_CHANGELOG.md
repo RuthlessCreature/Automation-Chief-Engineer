@@ -48,6 +48,7 @@
 - V9 G01 inspection then identified an unconfirmed-unit false positive: the raw-dimension regex read `G02` in “尺寸闭环推迟至 G02 单位确认” as a physical coordinate. V10 strips only explicit stage identifiers before dimensional matching; actual unit-bearing dimensions remain protected. A negative fixture covers the exact phrase; awaiting release/retest.
 - V10 same-task rework confirmed the G02 stage-ID dimension false positive is gone, but G01 still blocked three candidates on the sentence “本阶段不预设任何已完成测试结论”; the detector lacked `不预设` as an explicit disclaimer. V11 adds this negative-context phrase with a regression; this is a detector correction, not a relaxation of completed-test rejection.
 - V11 rework accepted G01 and G03 but G04 exhausted three attempts because “未输出任何 CAD 派生长度或已完成测试结论” lacked a `未输出` disclaimer. V12 adds this exact explicit negative context to the detector and regression coverage; positive completed-test claims remain blocked.
+- V12 same-task rework ended at G00 after all candidates were rejected for completed-test wording. The final candidate said “未声明任何已完成测试”; V13 recognizes explicit `未声明/未声称/未宣称` negations with a regression and retains positive completion blockers.
 
 ## Removed
 
