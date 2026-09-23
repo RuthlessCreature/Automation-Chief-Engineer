@@ -29,6 +29,8 @@ describe("independent candidate quality gate", () => {
   it("rejects fabricated FAT and trial-performance results unless explicitly bounded", () => {
     expect(findUnsupportedClaims("本阶段已完成：系统架构描述、风险清单和G04交接清单。"))
       .toEqual([]);
+    expect(findUnsupportedClaims("所有指标为目标值，不构成已完成的测试结论；后续需实测确认。"))
+      .toEqual([]);
     expect(findUnsupportedClaims("已完成FAT验收验证，检测率已确认达到99%。"))
       .toContain("unsupported completed-test claim detected");
     expect(findUnsupportedClaims("已通过G12试制验证予以关闭；试制样件200件、检出率99.2%、误检率0.8%。"))

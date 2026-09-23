@@ -54,7 +54,7 @@ export function findUnsupportedClaims(body: string): string[] {
   const sentences = body.split(/(?<=[。！？!?；;\n])\s*/);
   const reasons = new Set<string>();
   for (const sentence of sentences) {
-    const negatedOrPlanned = /(?:未执行|未完成|未验证|未测试|未实测|尚未|不得|不能|不应|禁止|计划|规划|假设|示例|建议|假装)/i.test(sentence);
+    const negatedOrPlanned = /(?:未执行|未完成|未验证|未测试|未实测|尚未|不得|不能|不应|不构成|不代表|不属于|不视为|并非|禁止|计划|规划|假设|示例|建议|假装)/i.test(sentence);
     if (UNSUPPORTED_COMPLETION_PATTERN.test(sentence) && !negatedOrPlanned) reasons.add("unsupported completed-test claim detected");
     const withoutGateIds = sentence.replace(/\b(?:G\d{2}(?:\/G?\d{2})?|R-\d{2}|OI-\d{3})\b/g, "");
     if (UNSUPPORTED_METRIC_PATTERN.test(withoutGateIds) && !QUALIFIED_METRIC_CONTEXT.test(sentence)) reasons.add("quantitative performance claim lacks an assumption or evidence qualifier");

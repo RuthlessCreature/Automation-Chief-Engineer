@@ -122,6 +122,21 @@ The latest source change removes inline input citations as an exception for indu
 
 This policy change makes the previously noted dedicated positive `INPUT-FILE-*` citation fixture unnecessary for the default-metric exception path: neither task-prompt nor uploaded-input citation waives the default/industry metric blocker. Source-grounded, non-default measurements continue to require normal evidence validation. The V6 production defects and lack of ZIP acceptance remain unchanged; V7 production acceptance is still **NOT RUN**.
 
+### V7 raw-bbox withholding and repair-feedback retest — 2026-09-23
+
+Independent local checks for the latest dossier-formatting change:
+
+| Check | Result | Evidence |
+|---|---|---|
+| Quality, harness and input-dossier suites | PASS | `npx vitest run test/quality.test.ts test/harness.test.ts test/input-dossier.test.ts`: 3 files, 18/18 tests passed. `test/input-dossier.test.ts` verifies raw bbox values are omitted for `UNCONFIRMED` and `MISSING` unit statuses and preserved only for `CONFIRMED`. |
+| Wrangler types | PASS | `npm run types`: Worker types are up to date. |
+| TypeScript | PASS | `npx tsc --noEmit`: exit code 0. |
+| Dependency sourcemaps | WARNING | Four missing `@cloudflare/containers` sourcemap source paths; non-fatal. |
+| Workflow-level dossier formatting / CAD-specific harness feedback assertion | NOT RUN | The formatter helper fixture and existing harness suite passed, and code inspection shows the workflow uses the helper and appends CAD-unit repair guidance. The executed tests do not instantiate the complete workflow dossier path or explicitly assert the CAD-specific feedback string. |
+| Production V7 deployment, 5015 rework and package eligibility | NOT RUN | No production operation was performed. |
+
+This supports the local formatter/helper and type-level change only. It does not prove the deployed workflow withholds bbox values, rejects all downstream raw-coordinate inferences, or prevents packaging. V7 production remains **NOT RUN** and the earlier V6 G01/G04 findings remain in force.
+
 ### V7 production probe: G03 false positive and local correction — 2026-09-23
 
 | Evidence | Result |
@@ -143,3 +158,17 @@ This policy change makes the previously noted dedicated positive `INPUT-FILE-*` 
 - All five G03 rejection records were unit-gate rejections. The last rejected body repeated raw bbox-derived lengths (roughly 53 and 15) while caveating “unit unconfirmed”; the worker correctly refused to treat those as safe physical dimensions. The previous “stage completed” false positive did not recur after its local fix.
 - Builder's next generic revision removes unconfirmed raw bbox coordinates from model context and adds explicit bounded repair instructions; confirmed-unit values remain available. Regression covers bbox prompt formatting. Local full suite 59/59, `tsc`, Wrangler types, dry-run and diff checks pass; not yet deployed or production-tested.
 - Current production remains `QUALITY_BLOCKED`; no ZIP acceptance or Golden Sample parity is claimed.
+
+### V7 withheld-bbox production probe and G01 disavowal false positive — 2026-09-23
+
+| Evidence | Result |
+|---|---|
+| Worker `fe3dd2d0-d08c-46eb-b719-5a266470cf7a`, deployed from local `main` commit `01351ed` | PASS (deployment evidence only). GitHub `main` push succeeded. |
+| Same 5015 full rework | Accepted. G00 passed after one rejected candidate; G01 exhausted three candidates and task returned to `QUALITY_BLOCKED`. |
+| CAD-unit behavior | G00 candidate containing CAD-derived physical size was rejected; follow-up G00 candidate passed. The raw bbox withholding path did not stop stage progress. |
+| G01 candidate quality | FAIL: candidate introduced unprovided numbers including a 3-second cycle target, 99.5% detection target, a 0.3 mm defect threshold, and 600±50 mm station height. These claims are not supported by task input and must not be accepted. |
+| Completed-test detector | False positive: “目标值，不构成已完成的测试结论” was marked as an unsupported completed-test claim. |
+| Local correction | Recognizes explicit denials (`不构成/不代表/不属于/不视为/并非`) as disclaimers; exact negative fixture passes and explicit unsupported FAT fixture remains rejected. Focused tests 18/18, tsc, Wrangler types and diff check PASS. |
+| Local correction production deployment/rework | NOT RUN as of this report; no later run or ZIP acceptance established. |
+
+Disposition: the latest production task is blocked in G01. The numeric requirements remain a genuine quality failure; only the completion-detector behavior was a false positive and is being corrected. Do not loosen unsupported metrics or approve any package from this run.
