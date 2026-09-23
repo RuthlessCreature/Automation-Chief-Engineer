@@ -83,6 +83,23 @@ describe("MiniMax OpenAI-compatible adapter", () => {
     expect(candidate).toMatchObject({ title: "项目与商务交接包", stageId: "project_sales", evidence: ["INPUT-task-prompt", "RULE-G12"] });
   });
 
+  it("removes embedded thinking blocks from JSON candidate fields while preserving final text", async () => {
+    const candidateJson = JSON.stringify({
+      title: "需求工程交付",
+      body: "<think>评估输入并规划回答，这段不能进入交付。</think>本阶段建立可追溯需求边界，按输入定义范围、假设、风险与交接。未提供的数据保留为需客户确认的输入，不伪造性能或测试结论。",
+      evidence: ["INPUT-task-prompt", "RULE-G01"],
+    });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: candidateJson } }] }), { status: 200 })));
+    const provider = new MiniMaxCandidateProvider("https://api.minimax.cn/v1", "not-a-real-key", "MiniMax-M3");
+    const candidate = await provider.generateCandidate({
+      taskId: "task-1", prompt: "建立需求工程边界。",
+      stage: { id: "requirements", label: "需求工程", agent: "Requirement Engineer", gate: "G01" },
+    });
+    expect(candidate.body).toContain("本阶段建立可追溯需求边界");
+    expect(candidate.body).not.toContain("评估输入并规划回答");
+    expect(candidate.body).not.toContain("<think>");
+  });
+
   it("turns model placeholder shorthand into explicit validation assumptions without inventing values", async () => {
     const candidateJson = JSON.stringify({
       title: "需求工程候选产出",

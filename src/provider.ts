@@ -169,7 +169,10 @@ type ParsedCandidate = { title: string; body: string; evidence: string[] };
  * still decide whether the candidate is acceptable.
  */
 function normalizeCandidate(candidate: ParsedCandidate): ParsedCandidate {
-  const normalize = (value: string) => value
+  const stripEmbeddedThought = (value: string) => value
+    .replace(/<(?:think|analysis)\b[^>]*>[\s\S]*?(?:<\/(?:think|analysis)>|$)/gi, "")
+    .trim();
+  const normalize = (rawValue: string) => stripEmbeddedThought(rawValue)
     .replace(/\bTBD\b/gi, "待验证假设（需客户确认）")
     .replace(/\bTODO\b/gi, "待验证假设（需客户确认）")
     .replace(/\bN\/A\b/gi, "不适用（需客户确认）")

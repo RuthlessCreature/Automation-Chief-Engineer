@@ -179,3 +179,10 @@ Disposition: the latest production task is blocked in G01. The numeric requireme
 - Deployed Worker `75d20089-3118-4f50-9257-da960469169e`, from GitHub `main` commit `ea04b09`. Same-task rework passed G00 and G01; risk IDs R1–R4 no longer triggered the CAD radius detector.
 - G03 still exhausted its bounded candidate retries and the task ended `QUALITY_BLOCKED`. Rejections included an unsupported CAD-derived physical-size candidate, an invalid evidence item, and a final fallback that persisted a full `<think>` reasoning block ahead of otherwise structured prose. These are not package-ready results and no downstream stage/ZIP exists.
 - Local fix sanitizes think/analysis wrappers in the structured-text fallback path; it does not waive reasoning-leak detection for raw `analysis:` text. Regression and focused quality/harness/input dossier suites: 25/25 PASS; tsc/types/diff check PASS. Deployment and same-task retest NOT RUN as of this addendum.
+
+### V7 think sanitization live follow-up — 2026-09-24
+
+- Worker `35ab8e60-4f02-4562-b46f-344eabfea761` received the same-task rework. The first workflow instance raised `WORKFLOW_EXECUTION_ERROR` and automatic retry began (`retry_count=1`); the retry then reached G01 but exhausted candidate retries and ended `QUALITY_BLOCKED`.
+- G01 candidates included an unqualified performance metric and two candidates rejected for transport/debug content. Since the transport/debug gate rejects `<think>`, raw hidden reasoning is not accepted or packaged.
+- Local follow-up strips explicitly tagged embedded think/analysis blocks inside parsed JSON title/body/evidence fields, retaining trailing final-answer text; it does not strip plain `analysis:` text or waive any substantive quality findings. Regression plus focused quality/harness/input dossier/MiniMax suites: 26/26 PASS; tsc/types/diff-check PASS.
+- Full suite, dry run, deployment and same-task rework for this field-level sanitizer: NOT RUN. Current deployed task is terminal `QUALITY_BLOCKED`; no ZIP approval or quality acceptance exists.

@@ -41,6 +41,7 @@
 - The withheld-bbox production rerun passed G00 but exposed a G01 false positive on an explicit “does not constitute completed test” disclaimer, alongside unsupported fabricated performance/geometry targets. A narrow disavowal-language fix and regression fixture are local; unsupported numerical claims remain blocked.
 - G01 artifact review exposed another false positive: risk identifiers such as `R1-...` matched the unconfirmed CAD radius detector. The unit pattern now distinguishes risk IDs from true `R5` radius callouts, covered by positive/negative tests; production retest is pending.
 - After deployment, G00/G01 passed and G03 blocked on unsupported CAD dimensions/evidence, with a final text fallback leaking MiniMax `<think>` content. The structured-text fallback now strips tagged think/analysis blocks before creating a candidate; focused regression passed, production retest pending.
+- The next live run reached G01 after an automatic workflow retry, but the task stayed blocked on an unqualified metric and repeated transport/debug-tag candidates. Tagged reasoning embedded inside JSON fields is now sanitized before the independent gate, with a regression proving the final text remains; local-only pending production replay.
 
 ## Removed
 
