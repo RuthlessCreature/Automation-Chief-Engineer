@@ -161,3 +161,9 @@ The Worker now builds and deploys the STL CADCore runner, safe preview routes, G
 - The G09 lexical contract only required the words BOM, quantity, cost, and supplier. V14 adds deterministic checks requiring server-identified quotation/procurement input references for each explicit price or named supplier/brand/model/part-number claim; model-authored evidence strings and qualifiers such as “estimate” are insufficient.
 - File names, extensions, and model-authored citations do not prove quotation contents. Because no server-side quote parser/verifier exists, the workflow currently passes no trusted quote references; the Harness therefore requires functional categories and an explicit unquoted boundary, never invented purchasing detail. This does not constitute quote verification, a costed BOM, a quality pass, or Golden Sample parity.
 - Focused quality/Harness tests: 20/20 PASS; TypeScript compile: PASS. Full suite, Wrangler type check, dry run, deployment, and same-task V14 production rework: pending.
+
+### V15 narrow G00 false-positive correction — 2026-09-24
+
+- V14 production rework on the same task blocked at G00. The final rejected candidate contained no completed FAT/field test claim: the numeric-default regex matched the `V14` embedded in a governed `RULE-...` identifier, and the completion detector matched `待验证` plus a CADCore topology verification statement.
+- V15 removes immutable `RULE-*` / `INPUT-*` identifiers before unsupported metric matching and narrows the completion detector to test/performance/acceptance claims. Added regressions cover the exact false-positive phrases and retain positive completed-performance-test blocking.
+- Focused quality tests: 13/13 PASS; full suite: 64/64 PASS; TypeScript: PASS; Wrangler types: PASS; deploy dry-run: PASS; diff check: PASS. Deployment and same-task V15 production rework remain pending.

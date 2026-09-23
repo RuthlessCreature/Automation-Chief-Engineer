@@ -41,6 +41,14 @@ describe("independent candidate quality gate", () => {
       .toEqual([]);
     expect(findUnsupportedClaims("本阶段已按 G00 契约完成输入清点，未声明任何已完成测试。"))
       .toEqual([]);
+    expect(findUnsupportedClaims("风险登记：把行业默认参数当成需求，触发 RULE-GB-ACE-DELIVERY-V14-BOM-SOURCE-GATE 硬门禁拦截。"))
+      .toEqual([]);
+    expect(findUnsupportedClaims("本阶段已通过把所有数值下沉为待验证项来规避。"))
+      .toEqual([]);
+    expect(findUnsupportedClaims("本阶段仅复述 CADCore 已验证拓扑计数，不代表 FAT 或性能测试完成。"))
+      .toEqual([]);
+    expect(findUnsupportedClaims("设备性能指标已验证，准确率达到验收要求。"))
+      .toContain("unsupported completed-test claim detected");
     expect(findUnsupportedClaims("电气接口：预留 24V 数字 IO 用于安全门与报警。"))
       .toContain("quantified engineering specification lacks a source or explicit assumption");
     expect(findUnsupportedClaims("电气接口电压暂按 24V 设计，待客户确认。"))

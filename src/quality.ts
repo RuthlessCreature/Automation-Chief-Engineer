@@ -4,9 +4,9 @@ export type QualityDecision = { pass: true } | { pass: false; reasons: readonly 
 
 export const UNRESOLVED_PLACEHOLDER_PATTERN = /(?:\bTBD\b|\bTODO\b|\bN\/A\b|待定|待补充|待填写|待回填|留待.{0,16}(?:回填|归档|生成|补充)|(?:后续|稍后).{0,10}(?:补充|回填|填写))/i;
 export const REASONING_LEAK_PATTERN = /<\/?think>|(?:^|\n)\s*(?:analysis|reasoning|思考过程)\s*:/i;
-export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V14-BOM-SOURCE-GATE";
+export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V15-CLAIM-SCOPE";
 
-const UNSUPPORTED_COMPLETION_PATTERN = /(?:已|已经)(?:验证|测试|实测|签核|归档|出图|报价|归集|定义|写入|关闭|测得|证明|核对)|(?:已|已经)完成.{0,12}(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试|实测|测量|签核)|(?:已|已经)通过.{0,10}(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试)|(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试).{0,8}(?:已|已经)通过/i;
+const UNSUPPORTED_COMPLETION_PATTERN = /(?:已|已经)(?:测试|实测|签核|归档|出图|报价|归集|定义|写入|关闭|测得|证明|核对)|(?:已|已经)验证.{0,10}(?:性能|功能|指标|准确率|节拍|验收|样件|缺陷|检测结果)|(?:已|已经)完成.{0,12}(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试|实测|测量|签核)|(?:已|已经)通过.{0,10}(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|测试|实测|测量)|(?:已|已经)通过.{0,10}(?<!待)验证|(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试).{0,8}(?:已|已经)通过/i;
 // Quantitative claims must carry an engineering unit. Without that requirement,
 // references such as G01/G12 in a missing-input sentence were misread as values.
 const UNSUPPORTED_METRIC_PATTERN = /(?:检出率|检出准确率|误检率|漏检率|良率|OEE|产能|产量|节拍|定位精度|定位误差).{0,18}\d+(?:\.\d+)?\s*(?:%|ppm|mm|μm|um|秒|s|件|pcs)/i;
@@ -62,10 +62,12 @@ export function findUnsupportedClaims(body: string): string[] {
   for (const sentence of sentences) {
     const negatedOrPlanned = /(?:未执行|未完成|未验证|未测试|未实测|未输出|未声明|未声称|未宣称|不声明|不声称|不宣称|尚未|不得|不能|不应|不构成|不代表|不属于|不视为|不预设|不输出|不出具|并非|禁止|计划|规划|假设|示例|建议|假装)/i.test(sentence);
     if (UNSUPPORTED_COMPLETION_PATTERN.test(sentence) && !negatedOrPlanned) reasons.add("unsupported completed-test claim detected");
-    const withoutGateIds = sentence.replace(/\b(?:G\d{2}(?:\/G?\d{2})?|R-\d{2}|OI-\d{3})\b/g, "");
+    const withoutGateIds = sentence
+      .replace(/\b(?:G\d{2}(?:\/G?\d{2})?|R-\d{2}|OI-\d{3})\b/g, "")
+      .replace(/\b(?:RULE|INPUT)-[A-Z0-9_-]+\b/gi, "");
     if (UNSUPPORTED_METRIC_PATTERN.test(withoutGateIds) && !QUALIFIED_METRIC_CONTEXT.test(sentence)) reasons.add("quantitative performance claim lacks an assumption or evidence qualifier");
     if (UNSOURCED_ENGINEERING_SPEC_PATTERN.test(sentence) && !QUALIFIED_METRIC_CONTEXT.test(sentence)) reasons.add("quantified engineering specification lacks a source or explicit assumption");
-    if (UNSOURCED_DEFAULT_METRIC_PATTERN.test(sentence)) reasons.add("industry/default numeric metric cannot become a requirement without source-content verification");
+    if (UNSOURCED_DEFAULT_METRIC_PATTERN.test(withoutGateIds)) reasons.add("industry/default numeric metric cannot become a requirement without source-content verification");
   }
   return [...reasons];
 }
