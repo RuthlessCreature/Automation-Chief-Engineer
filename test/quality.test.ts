@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateCandidate, findUnconfirmedUnitClaims, findUnresolvedPlaceholders, findUnsupportedClaims, hasUnconfirmedCadUnits, stageContractLabels } from "../src/quality";
+import { evaluateCandidate, findUnconfirmedUnitClaims, findUnresolvedPlaceholders, findUnsupportedClaims, findUnsupportedCommercialClaims, hasUnconfirmedCadUnits, stageContractLabels } from "../src/quality";
 import { hashPassword, verifyPassword } from "../src/security";
 
 describe("independent candidate quality gate", () => {
@@ -83,6 +83,37 @@ describe("independent candidate quality gate", () => {
     if (decision.pass) throw new Error("fabricated claim unexpectedly passed");
     expect(decision.reasons).toContain("unsupported completed-test claim detected");
     expect(decision.reasons).toContain("quantitative performance claim lacks an assumption or evidence qualifier");
+  });
+
+  it("blocks fabricated BOM suppliers, part numbers, and prices without verified quotation sources", () => {
+    const fabricated = "BOM 数量与成本如下：供应商：海康威视，型号：MV-CS050-10GM，单价 1,280 元，依据 2026 年第一季度公开渠道中位价。该金额可直接用于预算和采购。";
+    expect(findUnsupportedCommercialClaims(fabricated)).toEqual(expect.arrayContaining([
+      "BOM price/quotation claim has no server-verified quote source",
+      "BOM supplier/brand/model/part-number claim has no server-verified procurement source",
+    ]));
+    expect(findUnsupportedCommercialClaims("供应商未询价；未取得正式报价，当前不是可采购报价。仅列出功能性物料类别与已知数量依据。"))
+      .toEqual([]);
+    expect(findUnsupportedCommercialClaims("未取得正式报价，预算暂按 1,280 元估算。"))
+      .toContain("BOM price/quotation claim has no server-verified quote source");
+  });
+
+  it("requires an exact server-trusted quote reference on each commercial BOM claim", () => {
+    const quoteRef = "INPUT-FILE-quote-123";
+    const base = {
+      id: "bom", taskId: "task", stageId: "bom_cost", title: "受控 BOM 与成本边界", provider: "fixture", model: "fixture-v1",
+      body: ("BOM 按功能模块拆分数量依据与制造成本边界，供应商状态按正式采购证据管理。 ").repeat(12)
+        + `供应商：海康威视，型号：MV-CS050-10GM，报价 1,280 元，依据 ${quoteRef}。`,
+      evidence: ["INPUT-task-prompt", "RULE-G09", quoteRef],
+    };
+    const withoutQuoteTrust = evaluateCandidate(base);
+    expect(withoutQuoteTrust.pass).toBe(false);
+    if (withoutQuoteTrust.pass) throw new Error("untrusted quote reference unexpectedly passed");
+    expect(withoutQuoteTrust.reasons).toEqual(expect.arrayContaining([
+      "BOM price/quotation claim has no server-verified quote source",
+      "BOM supplier/brand/model/part-number claim has no server-verified procurement source",
+    ]));
+
+    expect(evaluateCandidate(base, [quoteRef], false, [quoteRef])).toEqual({ pass: true });
   });
 
   it("keeps G04 repair labels aligned with the deterministic signals", () => {

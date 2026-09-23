@@ -49,6 +49,7 @@
 - V10 same-task rework confirmed the G02 stage-ID dimension false positive is gone, but G01 still blocked three candidates on the sentence “本阶段不预设任何已完成测试结论”; the detector lacked `不预设` as an explicit disclaimer. V11 adds this negative-context phrase with a regression; this is a detector correction, not a relaxation of completed-test rejection.
 - V11 rework accepted G01 and G03 but G04 exhausted three attempts because “未输出任何 CAD 派生长度或已完成测试结论” lacked a `未输出` disclaimer. V12 adds this exact explicit negative context to the detector and regression coverage; positive completed-test claims remain blocked.
 - V12 same-task rework ended at G00 after all candidates were rejected for completed-test wording. The final candidate said “未声明任何已完成测试”; V13 recognizes explicit `未声明/未声称/未宣称` negations with a regression and retains positive completion blockers.
+- V13 same-task rework accepted upstream stages through G08, then correctly blocked G09 for unconfirmed CAD units and unsupported engineering figures. Rejected-candidate review found fabricated camera/lens suppliers, model identifiers, and 2026-Q1 “market median” prices that the lexical BOM contract did not detect. V14 adds a fail-closed commercial-source gate: price and named supplier/model/part-number claims require a server-identified quotation/procurement input and an exact citation in the same sentence; otherwise only functional categories and an explicit unquoted-cost boundary are permitted. Same 5015 task production rework is pending; no ZIP/PASS/parity claim is authorized.
 
 ## Removed
 

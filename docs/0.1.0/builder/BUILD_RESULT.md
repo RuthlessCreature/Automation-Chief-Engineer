@@ -154,3 +154,10 @@ The Worker now builds and deploys the STL CADCore runner, safe preview routes, G
 - V10 production rework exposed another false positive: `不预设任何已完成测试结论` lacked a recognized disclaimer token. V11 adds `不预设`; only negative-context handling changes. Regression and release pending.
 - V11 production rework moved through G01 and G03; G04 then hit the sibling disclaimer form `未输出任何 ... 已完成测试结论`. V12 adds `未输出` with a negative regression; awaiting full verification/release.
 - V12 production rework exposed another common disavowal form (`未声明任何已完成测试`) at G00. V13 recognizes explicit no-claim verbs and is pending verification.
+
+### V14 generic BOM sourcing gate — 2026-09-24
+
+- The live same-task V13 rework had accepted through G08 and then blocked at G09. Candidate review showed unsupported supplier/model identifiers and market-price statements in addition to the correctly rejected unsourced dimensions/specifications.
+- The G09 lexical contract only required the words BOM, quantity, cost, and supplier. V14 adds deterministic checks requiring server-identified quotation/procurement input references for each explicit price or named supplier/brand/model/part-number claim; model-authored evidence strings and qualifiers such as “estimate” are insufficient.
+- File names, extensions, and model-authored citations do not prove quotation contents. Because no server-side quote parser/verifier exists, the workflow currently passes no trusted quote references; the Harness therefore requires functional categories and an explicit unquoted boundary, never invented purchasing detail. This does not constitute quote verification, a costed BOM, a quality pass, or Golden Sample parity.
+- Focused quality/Harness tests: 20/20 PASS; TypeScript compile: PASS. Full suite, Wrangler type check, dry run, deployment, and same-task V14 production rework: pending.

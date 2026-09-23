@@ -4,7 +4,7 @@ export type QualityDecision = { pass: true } | { pass: false; reasons: readonly 
 
 export const UNRESOLVED_PLACEHOLDER_PATTERN = /(?:\bTBD\b|\bTODO\b|\bN\/A\b|待定|待补充|待填写|待回填|留待.{0,16}(?:回填|归档|生成|补充)|(?:后续|稍后).{0,10}(?:补充|回填|填写))/i;
 export const REASONING_LEAK_PATTERN = /<\/?think>|(?:^|\n)\s*(?:analysis|reasoning|思考过程)\s*:/i;
-export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V13-TEST-DISCLAIMER-GUARD";
+export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V14-BOM-SOURCE-GATE";
 
 const UNSUPPORTED_COMPLETION_PATTERN = /(?:已|已经)(?:验证|测试|实测|签核|归档|出图|报价|归集|定义|写入|关闭|测得|证明|核对)|(?:已|已经)完成.{0,12}(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试|实测|测量|签核)|(?:已|已经)通过.{0,10}(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试)|(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试).{0,8}(?:已|已经)通过/i;
 // Quantitative claims must carry an engineering unit. Without that requirement,
@@ -17,6 +17,9 @@ const UNRESOLVED_OPTION_PATTERN = /(?:\bN\b|\bX\b)\s*(?:待|由.{0,12}(?:确定|
 const UNIT_BEARING_MEASUREMENT_PATTERN = /(?:[<>≤≥~≈±]?\s*\d+(?:\.\d+)?\s*(?:millimeters?|mm|毫米|centimeters?|cm|厘米|micrometers?|microns?|μm|µm|um|微米|nanometers?|nm|纳米|inches?|英寸|英尺|feet|foot|ft|meters?|metres?|米|mils?|mil|m)(?![a-z0-9])|\bM\d+(?:\s*[x×]\s*\d+(?:\.\d+)?)?|[Ø⌀φ]\s*\d+(?:\.\d+)?|\bR\s*=?\s*\d+(?:\.\d+)?(?![\d\-–—:：])|\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?)/i;
 const RAW_COORDINATE_DIMENSION_PATTERN = /(?:尺寸|长度|宽度|高度|厚度|边长|直径|半径|工作距离|视场|bbox|坐标|缺陷.{0,5}尺寸).{0,25}[<>≤≥~≈±]?\s*\d+(?:\.\d+)?(?:\s*[~～–—-]\s*\d+(?:\.\d+)?)?\s*(?:units?|单位|坐标单位)(?![a-z0-9])/i;
 const UNCONFIRMED_UNIT_ASSUMPTION_PATTERN = /(?:(?:假设|暂按|默认|认定|推定).{0,35}(?:STEP|CAD|模型|几何|图纸)?.{0,15}(?:单位|unit).{0,20}(?:毫米|millimeters?|mm|厘米|centimeters?|cm|英寸|inches?|米|meters?|metres?|m)(?![a-z0-9])|(?:STEP|CAD|模型|几何|图纸).{0,15}(?:单位|unit).{0,12}(?:暂按|假设|默认|认定|推定).{0,12}(?:毫米|millimeters?|mm|厘米|centimeters?|cm|英寸|inches?|米|meters?|metres?|m)(?![a-z0-9]))/i;
+const UNSOURCED_PRICE_PATTERN = /(?:[¥￥]\s*\d|\bCNY\s*\d|人民币\s*\d|(?:单价|总价|报价|价格|成本价|市场价|中位价|采购价).{0,24}\d+(?:\.\d+)?\s*(?:元|万元|RMB|CNY)?)/i;
+const UNSOURCED_VENDOR_ID_PATTERN = /(?:(?:供应商|厂商|品牌)\s*[:：]\s*[^\s，,；;。]{2,}|(?:型号|料号|物料号|订货号|P\s*\/?\s*N|SKU)\s*[:：]?\s*[A-Z\d][A-Z\d._/-]{2,})/i;
+const UNNAMED_VENDOR_PATTERN = /(?:供应商|厂商|品牌|型号|料号|物料号|订货号|P\s*\/?\s*N|SKU)\s*[:：]?\s*(?:未询价|未取得报价|尚无报价|无报价证据|不提供具体|不指定|待正式询价|需正式报价|需取得正式报价|未选定供应商)/i;
 
 type StageContract = { id: string; required: readonly RegExp[]; labels: readonly string[] };
 
@@ -68,7 +71,7 @@ export function findUnsupportedClaims(body: string): string[] {
 }
 
 // This gate intentionally knows nothing about provider confidence. Evidence and contract fields win.
-export function evaluateCandidate(candidate: CandidateArtifact, requiredEvidenceRefs: readonly string[] = [], unconfirmedCadUnits = false): QualityDecision {
+export function evaluateCandidate(candidate: CandidateArtifact, requiredEvidenceRefs: readonly string[] = [], unconfirmedCadUnits = false, trustedQuoteEvidenceRefs: readonly string[] = []): QualityDecision {
   const reasons: string[] = [];
   if (!candidate.title.trim()) reasons.push("artifact title is required");
   if (candidate.body.trim().length < 120) reasons.push("artifact body is too short to be reviewable");
@@ -82,6 +85,9 @@ export function evaluateCandidate(candidate: CandidateArtifact, requiredEvidence
   const controlledText = [candidate.title, candidate.body, ...candidate.evidence].join("\n");
   if (UNRESOLVED_PLACEHOLDER_PATTERN.test(controlledText)) reasons.push("unresolved placeholder detected");
   reasons.push(...findUnsupportedClaims(candidate.body));
+  if (candidate.stageId === "bom_cost") {
+    reasons.push(...findUnsupportedCommercialClaims(candidate.body, trustedQuoteEvidenceRefs));
+  }
   if (unconfirmedCadUnits && findUnconfirmedUnitClaims(`${candidate.title}\n${candidate.body}`).length > 0) {
     reasons.push("CAD source units are unconfirmed; numeric physical lengths/threads must not be stated");
   }
@@ -89,6 +95,24 @@ export function evaluateCandidate(candidate: CandidateArtifact, requiredEvidence
   if (!candidate.provider || !candidate.model) reasons.push("provider provenance is required");
   if (reasons.length) return { pass: false, reasons };
   return evaluateStageDeliverable(candidate);
+}
+
+/**
+ * BOM commercial claims need a server-verified quotation/procurement source,
+ * not merely a model-authored INPUT citation or a qualifier such as “estimate”.
+ * Explicitly unquoted planning boundaries remain permissible, but cannot be
+ * confused with an actual priced/sourced BOM.
+ */
+export function findUnsupportedCommercialClaims(body: string, trustedQuoteEvidenceRefs: readonly string[] = []): string[] {
+  const refs = trustedQuoteEvidenceRefs.filter((ref) => /^INPUT-FILE-[\w-]+$/.test(ref));
+  const sentences = body.split(/(?<=[。！？!?；;\n])\s*/);
+  const reasons = new Set<string>();
+  for (const sentence of sentences) {
+    const containsQuoteRef = refs.some((ref) => sentence.includes(ref));
+    if (UNSOURCED_PRICE_PATTERN.test(sentence) && !containsQuoteRef) reasons.add("BOM price/quotation claim has no server-verified quote source");
+    if (UNSOURCED_VENDOR_ID_PATTERN.test(sentence) && !containsQuoteRef && !UNNAMED_VENDOR_PATTERN.test(sentence)) reasons.add("BOM supplier/brand/model/part-number claim has no server-verified procurement source");
+  }
+  return [...reasons];
 }
 
 export function findUnconfirmedUnitClaims(body: string): string[] {

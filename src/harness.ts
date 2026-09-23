@@ -44,6 +44,7 @@ export async function runStageHarness(input: {
   prompt: string;
   stage: PipelineStage;
   requiredEvidenceRefs?: readonly string[];
+  trustedQuoteEvidenceRefs?: readonly string[];
   unconfirmedCadUnits?: boolean;
   maxAttempts?: number;
   onAttempt?: (attempt: StageHarnessAttempt) => Promise<void>;
@@ -57,6 +58,11 @@ export async function runStageHarness(input: {
       : "",
     input.requiredEvidenceRefs?.length
       ? `必须逐字引用以下服务端核验的输入 ID：${input.requiredEvidenceRefs.join(", " )}。每个 ID 都要同时出现在 body 的“输入可追溯”段和 evidence 数组；若未引用任何一个，候选会被阻断。不得改写、缩写或猜测 ID。`
+      : "",
+    input.stage.id === "bom_cost"
+      ? input.trustedQuoteEvidenceRefs?.length
+        ? `BOM 商务证据约束：只有这些由服务端按报价/采购来源元数据识别的输入可支持具体供应商、品牌、型号、料号或价格：${input.trustedQuoteEvidenceRefs.join(", ")}。每条此类结论须在同一句引用对应原始 ID；其余输入不能证明报价。不得用估算、行业中位价或常识替代报价。`
+        : "BOM 商务证据约束：当前没有服务端识别的报价/采购来源。不得编写具名供应商、品牌、型号、料号、SKU、单价、总价、市场价或所谓公开报价；仅给出功能性物料类别、可从方案确认的数量依据、未报价的成本边界和采购取证/关闭条件。明确写“未取得正式报价，当前不是可采购报价”而不要编造金额。"
       : "",
   ].filter(Boolean);
   const governedPrompt = promptConstraints.length
@@ -117,7 +123,7 @@ export async function runStageHarness(input: {
       ? { ...candidate, evidence: [...new Set([...candidate.evidence, ...citedInputRefs])] }
       : candidate;
     candidate = normalizedCandidate;
-    const structural = evaluateCandidate(candidate, input.requiredEvidenceRefs, input.unconfirmedCadUnits);
+    const structural = evaluateCandidate(candidate, input.requiredEvidenceRefs, input.unconfirmedCadUnits, input.trustedQuoteEvidenceRefs);
     const comparison = structural.pass ? compareArtifactToGolden(candidate) : null;
     const reasons = [
       ...(structural.pass ? [] : structural.reasons),
@@ -139,6 +145,11 @@ export async function runStageHarness(input: {
         : []),
       ...(lastReasons.some((reason) => reason.startsWith("missing required source reference:"))
         ? [`修复输入追溯：将每个服务端必需引用 ${input.requiredEvidenceRefs?.join(", ") ?? ""} 原样写入 body 的“输入可追溯”段和 evidence 数组；不可漏引或改写。`]
+        : []),
+      ...(lastReasons.some((reason) => reason.startsWith("BOM "))
+        ? [input.trustedQuoteEvidenceRefs?.length
+          ? `修复 BOM 商务溯源：仅可引用已核验的报价/采购来源 ${input.trustedQuoteEvidenceRefs.join(", ")}，逐句标出证据；删除无来源的供应商、型号、料号及金额。`
+          : "修复 BOM 商务溯源：删除全部具名供应商、品牌、型号、料号、SKU 和具体金额/市场价，改为功能性物料类别及明确的未报价边界；不得将估算写成报价。"]
         : []),
       "保留真实输入边界和待验证假设，但不得输出占位词或伪造已完成结论。",
     ];
