@@ -121,3 +121,18 @@ The latest source change removes inline input citations as an exception for indu
 | V7 production deployment / same-task G01+G04 retest / ZIP gate | NOT RUN | No deployment or production mutation was performed. |
 
 This policy change makes the previously noted dedicated positive `INPUT-FILE-*` citation fixture unnecessary for the default-metric exception path: neither task-prompt nor uploaded-input citation waives the default/industry metric blocker. Source-grounded, non-default measurements continue to require normal evidence validation. The V6 production defects and lack of ZIP acceptance remain unchanged; V7 production acceptance is still **NOT RUN**.
+
+### V7 production probe: G03 false positive and local correction — 2026-09-23
+
+| Evidence | Result |
+|---|---|
+| V7 deployment | PASS — Worker version `84932442-923b-4103-b974-5abcbf96a9be`. |
+| Same-task controlled rework | PASS — accepted by API; workflow started against existing task `2b98d2bb-52cf-471d-ad6f-9a2c309a06c3`. |
+| G00/G01 accepted | Observed, not a quality approval; G01 still needs semantic audit. |
+| G03 stage completion | FAIL — task returned to `QUALITY_BLOCKED`; no downstream stages or ZIP. |
+| Metric guard | Observed effective on a rejected G03 candidate — provenance includes the `industry/default numeric metric cannot become a requirement without source-content verification` rejection. |
+| Completion-claim detector | FAIL — another G03 candidate that said “本阶段已完成：系统架构描述……” was rejected as an unsupported completed-test claim. This is a false positive for stage deliverable completion. |
+| Local correction | PASS — detector narrowed to explicit validation/test/acceptance/measurement completion, and regression asserts stage completion is allowed while “已完成FAT验收验证” remains blocked. Full `npm test` 58/58, `tsc`, Wrangler types and `git diff --check` pass. |
+| Corrected build production deployment/rework, G01 semantic audit, G04 behavior, ZIP review | NOT RUN — fix has not yet been deployed. |
+
+**Disposition:** This production iteration exposed both a working generic metric block and a validator false positive that stops G03. The current production V7 run is blocked and has no customer package; only a later controlled run can establish whether the local correction progresses without weakening unsupported-test protection.

@@ -36,6 +36,7 @@
 - Added local V7 checks to reject numeric industry/default metrics unless source-content verification exists, and to block unit assumptions/raw-coordinate dimensions while CAD units are unconfirmed. Since source-content verification is not implemented, an inline citation token alone cannot waive the metric block. These controls are generic; 5015 is evidence/test input only.
 - The generic metric restriction is intentionally fail-closed but conservative; source-backed exception handling requires a future verified claim-to-source mechanism.
 - V7 full local tests/build pass; the current Worker remains V6 until independent review and controlled production rework complete. No ZIP or quality acceptance is claimed.
+- First V7 production probe exposed a false positive: “this stage has completed” was treated as completed FAT/field validation. Local follow-up narrows the detector and adds both allowed-stage-completion and blocked-FAT regression cases; this correction is local only until redeployed.
 
 ## Removed
 
