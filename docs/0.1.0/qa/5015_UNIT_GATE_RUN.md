@@ -172,3 +172,4 @@ This supports the local formatter/helper and type-level change only. It does not
 | Local correction production deployment/rework | NOT RUN as of this report; no later run or ZIP acceptance established. |
 
 Disposition: the latest production task is blocked in G01. The numeric requirements remain a genuine quality failure; only the completion-detector behavior was a false positive and is being corrected. Do not loosen unsupported metrics or approve any package from this run.
+- Additional exact-candidate analysis found the CAD-unit rejection was triggered by risk labels `R1-...` / `R2-...` in the risk register, not physical geometry. A local negative fixture now verifies that risk IDs do not match the radius pattern while `R5` still does. Focused quality/harness/input-dossier tests: 18/18 PASS; tsc/types/diff check PASS. Deployment and production retest remain NOT RUN.

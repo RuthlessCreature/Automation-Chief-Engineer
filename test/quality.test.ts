@@ -99,6 +99,8 @@ describe("independent candidate quality gate", () => {
       .toHaveLength(4);
     expect(findUnconfirmedUnitClaims("半径 R5；外形 2 × 5 × 3。"))
       .toHaveLength(2);
+    expect(findUnconfirmedUnitClaims("风险登记：R1-手动波动；R2-定位重复性；R3-表面高光；R4-样本不足。"))
+      .toEqual([]);
     expect(findUnconfirmedUnitClaims("最小可检缺陷尺寸约 0.2 unit；工作距离 250–400 单位。"))
       .toHaveLength(2);
     expect(findUnconfirmedUnitClaims("5 units per carton; 5 个单位预算。"))

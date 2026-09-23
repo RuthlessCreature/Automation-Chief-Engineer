@@ -128,6 +128,7 @@ The initial implementation supersedes the historical “NOT_IMPLEMENTED” statu
 - Corrected V7 deployed as Worker version `37fa6764-ebc0-4d56-b91c-489f34e2af3e`. The same-task rework accepted G00 and G01, but remained `QUALITY_BLOCKED` at G03 after five rejected candidates. Each G03 candidate still included physical-looking bbox-derived lengths (e.g. approximately 53 and 15) while disclaiming unconfirmed units; the unit gate correctly rejected them. The candidate did not repeat the previous stage-completion false positive.
 - Local follow-up withholds numeric CAD bbox coordinates from the model dossier whenever `unitStatus` is not `CONFIRMED`, tells the model to use qualitative geometry only in that case, and supplies more specific repair feedback to remove even caveated CAD-derived physical lengths. Confirmed-unit bbox values remain available. A unit test covers both branches.
 - Latest local checks: `npm test` PASS — 12 files / 59 tests; `npx tsc --noEmit` PASS; `npm run types` PASS; `npx wrangler deploy --dry-run` PASS; `git diff --check` PASS. This change is not yet deployed or production-retested.
+- Final G01 rejected body showed a second unit-regex false positive: risk IDs `R1-...` through `R4-...` were interpreted as radius callouts. Local regex now excludes `R<number>-`/colon-delimited risk identifiers while preserving `R5` radius detection. Regression and focused checks pass; production rework has not yet verified this correction.
 
 ### V7 withheld-bbox production probe — 2026-09-23
 
