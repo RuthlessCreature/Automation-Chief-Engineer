@@ -12,16 +12,16 @@ describe("live task event reconciliation", () => {
   it("deduplicates and sorts responses that arrive out of order", () => {
     const merged = mergeTaskEvents([event(2), event(1)], [event(3), event(2, "PACKAGING")]);
     expect(merged.map((item) => item.seq)).toEqual([1, 2, 3]);
-    expect(merged[1].payload).toEqual({ state: "PACKAGING" });
+    expect(merged[1]!.payload).toEqual({ state: "PACKAGING" });
   });
 
   it("uses a newer state event when the task response is stale", () => {
     const task = { state: "RUNNING", updated_at: "2026-09-22T00:00:01Z" };
-    expect(reconcileTaskState(task, [event(2, "PACKAGING", "2026-09-22T00:00:02Z")]).state).toBe("PACKAGING");
+    expect(reconcileTaskState(task, [event(2, "PACKAGING", "2026-09-22T00:00:02Z")])!.state).toBe("PACKAGING");
   });
 
   it("keeps the D1 task state when it is newer than the event", () => {
     const task = { state: "PACKAGED", updated_at: "2026-09-22T00:00:03Z" };
-    expect(reconcileTaskState(task, [event(2, "PACKAGING", "2026-09-22T00:00:02Z")]).state).toBe("PACKAGED");
+    expect(reconcileTaskState(task, [event(2, "PACKAGING", "2026-09-22T00:00:02Z")])!.state).toBe("PACKAGED");
   });
 });

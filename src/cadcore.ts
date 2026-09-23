@@ -87,6 +87,13 @@ export async function inspectCadInCadcore(env: Env, input: CadInput): Promise<Ca
 
 export const inspectStepInCadcore = inspectCadInCadcore;
 
+export const GOLDEN_VALIDATOR_SANDBOX_OPTIONS = {
+  keepAlive: true,
+  normalizeId: true,
+  transport: "rpc",
+} as const;
+export const GOLDEN_VALIDATOR_TIMEOUT_MS = 300_000;
+
 export type CadDeliveryAssetKeys = {
   brepKey: string;
   stepKey: string;
@@ -186,35 +193,43 @@ export async function buildConceptCadAssets(
 
 /** Run the repository's authoritative Golden-121 validator inside CADCore before freezing a customer ZIP. */
 export async function validateGoldenDeliveryZip(env: Env, taskId: string, zipBytes: Uint8Array): Promise<void> {
-  const sandbox = getSandbox(env.CADCORE, `cad-${taskId}`, { sleepAfter: "5m", normalizeId: true, transport: "rpc" });
+  // Golden-121 validation can legitimately run for several minutes. Keep the
+  // sandbox container alive while the RPC is in flight; otherwise its 5-minute
+  // idle timer can stop the container/DO underneath the long command.
+  const sandbox = getSandbox(env.CADCORE, `cad-${taskId}`, GOLDEN_VALIDATOR_SANDBOX_OPTIONS);
   const workspace = "/workspace/cad/validate/golden-r01";
   const zipPath = `${workspace}/customer-delivery.zip`;
-  await sandbox.mkdir(workspace, { recursive: true });
-  const stream = new ReadableStream<Uint8Array>({
-    start(controller) { controller.enqueue(zipBytes); controller.close(); },
-  });
-  await sandbox.writeFile(zipPath, stream);
-  const execution = await sandbox.exec(
-    `python3 /opt/cadcore/validate_r2_f10_golden_delivery.py ${zipPath}`,
-    // Golden-121 is intentionally strict, but it must still have a bounded
-    // execution window. Without this limit a sandbox/container transport
-    // stall can leave the Workflow in PACKAGING indefinitely and prevent the
-    // bounded retry policy from ever reaching FAILED.
-    { cwd: workspace, timeout: 300_000 },
-  );
-  if (!execution.success) {
-    const diagnostics = [execution.stdout, execution.stderr, `exitCode=${execution.exitCode}`]
-      .filter(Boolean)
-      .join("\n")
-      .slice(-6_000);
-    const coordinator = env.TASK_COORDINATOR.getByName(taskId) as DurableObjectStub<TaskCoordinator>;
-    await coordinator.publish({
-      type: "QUALITY_BLOCKED",
-      stageId: "chief_review",
-      message: "Golden-121 validator diagnostics（交付已阻断）",
-      payload: { state: "QUALITY_BLOCKED", qualityStatus: "BLOCKED", errorCode: "DELIVERY_GOLDEN_VALIDATOR_REWORK", diagnostics },
-      createdAt: isoNow(),
+  try {
+    await sandbox.mkdir(workspace, { recursive: true });
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) { controller.enqueue(zipBytes); controller.close(); },
     });
-    throw new Error("DELIVERY_GOLDEN_VALIDATOR_REWORK");
+    await sandbox.writeFile(zipPath, stream);
+    const execution = await sandbox.exec(
+      `python3 /opt/cadcore/validate_r2_f10_golden_delivery.py ${zipPath}`,
+      // Golden-121 is intentionally strict, but it must still have a bounded
+      // execution window. The keep-alive above prevents an idle container
+      // sleep while the command is running; timeout remains fail-closed.
+      { cwd: workspace, timeout: GOLDEN_VALIDATOR_TIMEOUT_MS },
+    );
+    if (!execution.success) {
+      const diagnostics = [execution.stdout, execution.stderr, `exitCode=${execution.exitCode}`]
+        .filter(Boolean)
+        .join("\n")
+        .slice(-6_000);
+      const coordinator = env.TASK_COORDINATOR.getByName(taskId) as DurableObjectStub<TaskCoordinator>;
+      await coordinator.publish({
+        type: "QUALITY_BLOCKED",
+        stageId: "chief_review",
+        message: "Golden-121 validator diagnostics（交付已阻断）",
+        payload: { state: "QUALITY_BLOCKED", qualityStatus: "BLOCKED", errorCode: "DELIVERY_GOLDEN_VALIDATOR_REWORK", diagnostics },
+        createdAt: isoNow(),
+      });
+      throw new Error("DELIVERY_GOLDEN_VALIDATOR_REWORK");
+    }
+  } finally {
+    // This is the last Sandbox operation in package assembly. Destroying it
+    // stops any timed-out validator process and releases the keep-alive slot.
+    try { await sandbox.destroy(); } catch { /* preserve the validation result */ }
   }
 }

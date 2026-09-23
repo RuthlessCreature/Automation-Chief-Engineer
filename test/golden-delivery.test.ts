@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PIPELINE } from "../src/domain";
+import { GOLDEN_VALIDATOR_SANDBOX_OPTIONS, GOLDEN_VALIDATOR_TIMEOUT_MS } from "../src/cadcore";
 import { GOLDEN_SHEETS, docx, docxForDelivery, envelope, geometryViews, geometryVisuals, openCsv, pdf, png, pptx, views, visuals, xlsx, type Report } from "../src/golden-delivery";
 import { noProductCadEvidence } from "../src/golden-package";
 import { pdfForDelivery } from "../src/pdf-delivery";
@@ -57,6 +58,11 @@ function entries(bytes: Uint8Array): Map<string, Uint8Array> {
 }
 
 describe("Golden-121 deterministic assets", () => {
+  it("keeps the long-running Golden-121 validator sandbox alive with a bounded command timeout", () => {
+    expect(GOLDEN_VALIDATOR_SANDBOX_OPTIONS).toMatchObject({ keepAlive: true, normalizeId: true, transport: "rpc" });
+    expect(GOLDEN_VALIDATOR_TIMEOUT_MS).toBe(300_000);
+  });
+
   it("uses the mechanical golden FCT envelope when no dimensions are supplied", () => {
     expect(envelope("没有冻结机台尺寸")).toMatchObject({
       widthMm: 700,
