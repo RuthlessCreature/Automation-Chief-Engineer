@@ -96,6 +96,15 @@ export async function runStageHarness(input: {
       throw lastProviderError ?? new Error("MINIMAX_INVALID_RESPONSE");
     }
 
+    // Normalize a server-verified source citation into the evidence array only
+    // when the candidate body itself explicitly names that exact immutable ref.
+    // This preserves provenance while avoiding reliance on M3's JSON evidence
+    // array formatting; an uncited attachment still fails the gate.
+    const citedInputRefs = (input.requiredEvidenceRefs ?? []).filter((ref) => candidate!.body.includes(ref) || candidate!.evidence.includes(ref));
+    const normalizedCandidate = citedInputRefs.length
+      ? { ...candidate, evidence: [...new Set([...candidate.evidence, ...citedInputRefs])] }
+      : candidate;
+    candidate = normalizedCandidate;
     const structural = evaluateCandidate(candidate, input.requiredEvidenceRefs);
     const comparison = structural.pass ? compareArtifactToGolden(candidate) : null;
     const reasons = [

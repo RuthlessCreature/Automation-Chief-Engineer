@@ -30,7 +30,7 @@ describe("stage harness", () => {
         calls += 1;
         return calls === 1
           ? candidate(validBody, calls)
-          : candidate(validBody, calls, ["INPUT-task-prompt", required, "RULE-G02"]);
+          : candidate(`${validBody}\n输入追溯标识：${required}`, calls);
       },
     };
     const result = await runStageHarness({
@@ -42,6 +42,7 @@ describe("stage harness", () => {
     });
     expect(result).toMatchObject({ status: "ACCEPTED", attempts: 2 });
     expect(calls).toBe(2);
+    expect(result.status === "ACCEPTED" && result.artifact.evidence).toContain(required);
   });
 
   it("repairs a placeholder candidate before accepting and persisting it", async () => {
