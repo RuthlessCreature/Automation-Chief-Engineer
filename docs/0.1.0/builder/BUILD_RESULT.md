@@ -167,3 +167,8 @@ The Worker now builds and deploys the STL CADCore runner, safe preview routes, G
 - V14 production rework on the same task blocked at G00. The final rejected candidate contained no completed FAT/field test claim: the numeric-default regex matched the `V14` embedded in a governed `RULE-...` identifier, and the completion detector matched `待验证` plus a CADCore topology verification statement.
 - V15 removes immutable `RULE-*` / `INPUT-*` identifiers before unsupported metric matching and narrows the completion detector to test/performance/acceptance claims. Added regressions cover the exact false-positive phrases and retain positive completed-performance-test blocking.
 - Focused quality tests: 13/13 PASS; full suite: 64/64 PASS; TypeScript: PASS; Wrangler types: PASS; deploy dry-run: PASS; diff check: PASS. Deployment and same-task V15 production rework remain pending.
+
+### V16 MiniMax model-name / CAD-thread distinction — 2026-09-24
+
+- V15 same-task rework passed G00, then G01 blocked because the unit regex interpreted the workflow metadata value `MiniMax-M3` as an M3 thread-size callout. The rejected candidate also ended with a truncated JSON transport body, which must remain rejected by the debug/structure boundary after this detector correction.
+- V16 excludes only dedicated provider/model metadata lines from geometry-dimension scanning. A paired regression asserts that `MiniMax-M3` metadata is ignored while an actual `M3` thread callout remains detected. Focused quality suite: 13/13 PASS; full suite: 64/64 PASS; TypeScript, Wrangler types, deploy dry-run, and diff check: PASS. Production deployment and same-task retest pending.

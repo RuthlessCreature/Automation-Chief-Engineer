@@ -4,7 +4,7 @@ export type QualityDecision = { pass: true } | { pass: false; reasons: readonly 
 
 export const UNRESOLVED_PLACEHOLDER_PATTERN = /(?:\bTBD\b|\bTODO\b|\bN\/A\b|待定|待补充|待填写|待回填|留待.{0,16}(?:回填|归档|生成|补充)|(?:后续|稍后).{0,10}(?:补充|回填|填写))/i;
 export const REASONING_LEAK_PATTERN = /<\/?think>|(?:^|\n)\s*(?:analysis|reasoning|思考过程)\s*:/i;
-export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V15-CLAIM-SCOPE";
+export const QUALITY_POLICY_VERSION = "GB-ACE-DELIVERY-V16-METADATA-AWARE-UNIT-GATE";
 
 const UNSUPPORTED_COMPLETION_PATTERN = /(?:已|已经)(?:测试|实测|签核|归档|出图|报价|归集|定义|写入|关闭|测得|证明|核对)|(?:已|已经)验证.{0,10}(?:性能|功能|指标|准确率|节拍|验收|样件|缺陷|检测结果)|(?:已|已经)完成.{0,12}(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试|实测|测量|签核)|(?:已|已经)通过.{0,10}(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|测试|实测|测量)|(?:已|已经)通过.{0,10}(?<!待)验证|(?:试制|FAT|SAT|MSA|GR\/?R|GR&R|POC|验收|验证|测试).{0,8}(?:已|已经)通过/i;
 // Quantitative claims must carry an engineering unit. Without that requirement,
@@ -118,7 +118,8 @@ export function findUnsupportedCommercialClaims(body: string, trustedQuoteEviden
 }
 
 export function findUnconfirmedUnitClaims(body: string): string[] {
-  const claims = body.split(/(?<=[。！？!?；;\n])\s*/);
+  const withoutProvenance = body.replace(/^\s*(?:[-*#>]\s*)?(?:提供方|模型提供方|provider|model)\s*[:：].*$/gim, "");
+  const claims = withoutProvenance.split(/(?<=[。！？!?；;\n])\s*/);
   return claims.filter((sentence) => {
     const withoutStageIds = sentence.replace(/\bG\d{2}(?:\/G?\d{2})?\b/g, "GATE-ID");
     return UNIT_BEARING_MEASUREMENT_PATTERN.test(withoutStageIds)

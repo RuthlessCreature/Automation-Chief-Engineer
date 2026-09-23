@@ -52,6 +52,8 @@
 - V13 same-task rework accepted upstream stages through G08, then correctly blocked G09 for unconfirmed CAD units and unsupported engineering figures. Rejected-candidate review found fabricated camera/lens suppliers, model identifiers, and 2026-Q1 “market median” prices that the lexical BOM contract did not detect. V14 adds a fail-closed commercial-source gate: price and named supplier/model/part-number claims require a server-identified quotation/procurement input and an exact citation in the same sentence; otherwise only functional categories and an explicit unquoted-cost boundary are permitted. Same 5015 task production rework is pending; no ZIP/PASS/parity claim is authorized.
 - V14 same-task production rework blocked at G00. Rejected-candidate review proved two narrow false positives: a version number embedded in a `RULE-...V14` identifier was treated as an industry metric, while `待验证` and a CADCore topology statement were read as completed testing. V15 strips governed reference IDs before numeric-default checks and scopes completion detection to test/performance claims while retaining positive FAT/real-test blockers. Retest on the same 5015 task is pending.
 
+- V15 same-task rework accepted G00 but blocked G01. The exact rejected text showed the CAD-unit regex matched the `M3` in a provider metadata line (`MiniMax-M3`), not an engineering thread callout. V16 excludes provider/model provenance lines from physical-dimension scanning while retaining detection of `M3` thread claims in actual design text; regression coverage added.
+
 ## Removed
 
 - 不适用。

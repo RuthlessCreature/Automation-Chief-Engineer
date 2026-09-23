@@ -164,6 +164,10 @@ describe("independent candidate quality gate", () => {
       .toHaveLength(1);
     expect(findUnconfirmedUnitClaims("STEP 单位暂按 mm。"))
       .toHaveLength(1);
+    expect(findUnconfirmedUnitClaims("执行元数据：\n- 提供方：minimax / MiniMax-M3\n设计约束：CAD 单位未确认，不输出物理尺寸。"))
+      .toEqual([]);
+    expect(findUnconfirmedUnitClaims("产品 CAD 交付：M3 螺纹与 Ø8 孔位。"))
+      .toHaveLength(1);
     expect(findUnconfirmedUnitClaims("G04 进度 15/15；CADCore 确认 4 solids、397 faces、2130 edges。"))
       .toEqual([]);
     expect(findUnconfirmedUnitClaims("缓解：将尺寸闭环推迟至 G02 单位确认后。"))
