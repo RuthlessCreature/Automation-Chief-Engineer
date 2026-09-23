@@ -287,7 +287,7 @@ function stageContractInstructions(stage: PipelineStage): string {
 }
 
 function parseStructuredTextCandidate(content: string, stage: PipelineStage): ParsedCandidate {
-  const body = content.trim().replace(/^```(?:markdown|md)?\s*/i, "").replace(/\s*```$/, "");
+  const body = sanitizeModelContent(content).replace(/^```(?:markdown|md)?\s*/i, "").replace(/\s*```$/, "");
   const hasEngineeringSignal = /检测|视觉|相机|光源|尺寸|节拍|BOM|PLC|MES|CAD|风险|验证|接口|流程|方案|文档|工程|测试|inspection|vision|camera|safety|validation/i.test(body);
   const refusal = /无法完成|不能完成|做不到|请提供更多|信息不足以|作为语言模型|抱歉|i\s*cannot|i'm\s*unable/i.test(body);
   const sentenceCount = (body.match(/[。.!?！？]/g) ?? []).length;

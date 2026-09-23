@@ -50,6 +50,22 @@ describe("MiniMax OpenAI-compatible adapter", () => {
     expect(candidate).toMatchObject({ title: "机械方案｜受控文本候选产出", evidence: ["INPUT-task-prompt", "RULE-G05"] });
   });
 
+  it("strips MiniMax think blocks before using a structured-text fallback", async () => {
+    const structured = ("系统架构：本阶段建立可审查的可行性架构。输入：CAD单位未确认，故只使用拓扑计数，不输出物理尺寸。假设：相机、镜头和光源选型需等待样件和单位输入。风险：表面反光与遮挡可能影响覆盖，应在下一阶段验证。交接：输出相机、光源和控制接口边界，未完成现场验证不得声称通过。 ").repeat(2);
+    const withThinking = `<think>先分析用户目标并规划答复，这些内容不能泄漏到正式交付。</think>\n${structured}`;
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ choices: [{ message: { content: withThinking } }] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ choices: [{ message: { content: withThinking } }] }), { status: 200 })));
+    const provider = new MiniMaxCandidateProvider("https://api.minimax.cn/v1", "not-a-real-key", "MiniMax-M3");
+    const candidate = await provider.generateCandidate({
+      taskId: "task-1", prompt: "输出不含物理尺寸的可行性架构。",
+      stage: { id: "feasibility", label: "可行性架构", agent: "Feasibility Architect", gate: "G03" },
+    });
+    expect(candidate.body).toContain("系统架构");
+    expect(candidate.body).not.toContain("<think>");
+    expect(candidate.body).not.toContain("规划答复");
+  });
+
   it("extracts JSON wrapped by MiniMax thinking tags and markdown fences", async () => {
     const candidateJson = JSON.stringify({
       title: "项目与商务交接包",

@@ -40,6 +40,7 @@
 - The next V7 production rerun confirmed the CAD-unit guard correctly rejects bbox-derived physical lengths even when labeled “unit unconfirmed”; the model repeated those values through five attempts. New local hardening withholds raw bbox coordinates from the model when units are unconfirmed, keeps confirmed-unit values, and gives explicit repair feedback. Local tests pass; production retest remains pending.
 - The withheld-bbox production rerun passed G00 but exposed a G01 false positive on an explicit “does not constitute completed test” disclaimer, alongside unsupported fabricated performance/geometry targets. A narrow disavowal-language fix and regression fixture are local; unsupported numerical claims remain blocked.
 - G01 artifact review exposed another false positive: risk identifiers such as `R1-...` matched the unconfirmed CAD radius detector. The unit pattern now distinguishes risk IDs from true `R5` radius callouts, covered by positive/negative tests; production retest is pending.
+- After deployment, G00/G01 passed and G03 blocked on unsupported CAD dimensions/evidence, with a final text fallback leaking MiniMax `<think>` content. The structured-text fallback now strips tagged think/analysis blocks before creating a candidate; focused regression passed, production retest pending.
 
 ## Removed
 

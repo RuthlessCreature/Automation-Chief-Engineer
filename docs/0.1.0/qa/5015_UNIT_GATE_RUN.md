@@ -173,3 +173,9 @@ This supports the local formatter/helper and type-level change only. It does not
 
 Disposition: the latest production task is blocked in G01. The numeric requirements remain a genuine quality failure; only the completion-detector behavior was a false positive and is being corrected. Do not loosen unsupported metrics or approve any package from this run.
 - Additional exact-candidate analysis found the CAD-unit rejection was triggered by risk labels `R1-...` / `R2-...` in the risk register, not physical geometry. A local negative fixture now verifies that risk IDs do not match the radius pattern while `R5` still does. Focused quality/harness/input-dossier tests: 18/18 PASS; tsc/types/diff check PASS. Deployment and production retest remain NOT RUN.
+
+### V7 risk-ID correction production probe and think-fallback leakage — 2026-09-24
+
+- Deployed Worker `75d20089-3118-4f50-9257-da960469169e`, from GitHub `main` commit `ea04b09`. Same-task rework passed G00 and G01; risk IDs R1–R4 no longer triggered the CAD radius detector.
+- G03 still exhausted its bounded candidate retries and the task ended `QUALITY_BLOCKED`. Rejections included an unsupported CAD-derived physical-size candidate, an invalid evidence item, and a final fallback that persisted a full `<think>` reasoning block ahead of otherwise structured prose. These are not package-ready results and no downstream stage/ZIP exists.
+- Local fix sanitizes think/analysis wrappers in the structured-text fallback path; it does not waive reasoning-leak detection for raw `analysis:` text. Regression and focused quality/harness/input dossier suites: 25/25 PASS; tsc/types/diff check PASS. Deployment and same-task retest NOT RUN as of this addendum.
