@@ -184,7 +184,7 @@ export class TaskWorkflow extends WorkflowEntrypoint<Env, TaskWorkflowParams> {
       const existing = await this.env.DB.prepare(
         "SELECT id, status, report_storage_key, normalized_brep_key, error_code FROM cad_jobs WHERE task_id = ? AND input_id = ? AND kind = ? ORDER BY created_at DESC LIMIT 1",
       ).bind(taskId, input.id, kind).first<CadJobRow>();
-      let regenerateLegacyStepReport = false;
+      let refreshExistingStepJob = false;
       if (existing?.status === "SUCCEEDED") {
         if (isStl) { processed += 1; continue; }
         const existingReport = existing.report_storage_key ? await this.env.ARTIFACTS.get(existing.report_storage_key) : null;
@@ -198,20 +198,22 @@ export class TaskWorkflow extends WorkflowEntrypoint<Env, TaskWorkflowParams> {
           } catch { /* malformed/stale reports are regenerated below */ }
         }
         if (unitAwareStepReport) { processed += 1; continue; }
-        regenerateLegacyStepReport = true;
+        refreshExistingStepJob = true;
         // Regenerate legacy STEP reports that never inspected explicit LENGTH_UNIT
         // declarations. Otherwise a correct CADCore upgrade would still consume stale
         // UNCONFIRMED metadata and block the same source file forever. Reuse the unique
         // job row; cad_jobs intentionally has one canonical inspection per input/kind.
       }
-      if (existing?.status === "BLOCKED" || existing?.status === "RUNNING" || existing?.status === "QUEUED") {
+      if (existing?.status === "BLOCKED" && !isStl && existing.error_code?.startsWith("D1_ERROR: UNIQUE constraint failed: artifacts.task_id")) {
+        refreshExistingStepJob = true;
+      } else if (existing?.status === "BLOCKED" || existing?.status === "RUNNING" || existing?.status === "QUEUED") {
         throw new Error(existing.error_code ?? `CADCORE_${existing.status}`);
       }
-      const jobId = regenerateLegacyStepReport && existing ? existing.id : crypto.randomUUID();
+      const jobId = refreshExistingStepJob && existing ? existing.id : crypto.randomUUID();
       const startedAt = isoNow();
-      if (regenerateLegacyStepReport) {
+      if (refreshExistingStepJob) {
         await this.env.DB.prepare(
-          "UPDATE cad_jobs SET status = 'RUNNING', report_storage_key = NULL, normalized_brep_key = NULL, error_code = NULL, engine_json = ?, started_at = ?, completed_at = NULL WHERE id = ? AND status = 'SUCCEEDED'",
+          "UPDATE cad_jobs SET status = 'RUNNING', report_storage_key = NULL, normalized_brep_key = NULL, error_code = NULL, engine_json = ?, started_at = ?, completed_at = NULL WHERE id = ? AND status IN ('SUCCEEDED', 'BLOCKED')",
         ).bind(JSON.stringify({ runtime: "cadcore-runner", occt: "7.9.3.1.1", meshToBrep: false, automatic: true, unitParser: "cadcore-g02-0.1.1" }), startedAt, jobId).run();
       } else {
         await this.env.DB.prepare(
@@ -225,9 +227,9 @@ export class TaskWorkflow extends WorkflowEntrypoint<Env, TaskWorkflowParams> {
         await this.env.DB.batch([
           this.env.DB.prepare("UPDATE cad_jobs SET status = 'SUCCEEDED', report_storage_key = ?, normalized_brep_key = ?, completed_at = ? WHERE id = ?")
             .bind(result.reportKey, result.normalizedBrepKey, completedAt, jobId),
-          this.env.DB.prepare("INSERT INTO artifacts (id, task_id, stage_id, kind, title, storage_key, sha256, status, provenance_json, created_at, visibility) VALUES (?, ?, 'product_cad', ?, ?, ?, ?, 'ACCEPTED', ?, ?, 'INTERNAL')")
+          this.env.DB.prepare("INSERT INTO artifacts (id, task_id, stage_id, kind, title, storage_key, sha256, status, provenance_json, created_at, visibility) VALUES (?, ?, 'product_cad', ?, ?, ?, ?, 'ACCEPTED', ?, ?, 'INTERNAL') ON CONFLICT(task_id, stage_id, storage_key) DO UPDATE SET kind = excluded.kind, title = excluded.title, sha256 = excluded.sha256, status = 'ACCEPTED', provenance_json = excluded.provenance_json, created_at = excluded.created_at, visibility = 'INTERNAL'")
             .bind(crypto.randomUUID(), taskId, "cad-g02-report", `G02｜${isStl ? "STL 网格几何" : "STEP"} 检查报告`, result.reportKey, result.reportSha256, JSON.stringify({ cadJobId: jobId, inputId: input.id, gate: "G02", report: result.report, qualityPolicyVersion: QUALITY_POLICY_VERSION }), completedAt),
-          this.env.DB.prepare("INSERT INTO artifacts (id, task_id, stage_id, kind, title, storage_key, sha256, status, provenance_json, created_at, visibility) VALUES (?, ?, 'product_cad', ?, ?, ?, ?, 'ACCEPTED', ?, ?, 'INTERNAL')")
+          this.env.DB.prepare("INSERT INTO artifacts (id, task_id, stage_id, kind, title, storage_key, sha256, status, provenance_json, created_at, visibility) VALUES (?, ?, 'product_cad', ?, ?, ?, ?, 'ACCEPTED', ?, ?, 'INTERNAL') ON CONFLICT(task_id, stage_id, storage_key) DO UPDATE SET kind = excluded.kind, title = excluded.title, sha256 = excluded.sha256, status = 'ACCEPTED', provenance_json = excluded.provenance_json, created_at = excluded.created_at, visibility = 'INTERNAL'")
             .bind(crypto.randomUUID(), taskId, "normalized-brep", "G02｜规范化 BREP（内部）", result.normalizedBrepKey, result.normalizedBrepSha256, JSON.stringify({ cadJobId: jobId, inputId: input.id, gate: "G02", sourceSha256: input.sha256, qualityPolicyVersion: QUALITY_POLICY_VERSION }), completedAt),
         ]);
         processed += 1;

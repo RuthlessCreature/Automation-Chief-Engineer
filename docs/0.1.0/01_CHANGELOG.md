@@ -83,7 +83,13 @@
 
 - V20 deployment succeeded, but the same-task replay and both automatic retries failed before G00 because `cad_jobs` has a unique `(task_id, input_id, kind)` constraint. The legacy-report refresh path incorrectly attempted to insert a second job for the same STEP input.
 - V21 refreshes the unique canonical job row in place, clears stale report keys, and records the unit parser version before reinspection. No legacy measurement is trusted and no quality Gate is relaxed.
-- V21 verification: Python unit tests 3/3, full suite 66/66, TypeScript/Wrangler types, deploy dry-run and diff check PASS. The same task is FAILED with no credits charged and may be safely reworked; V21 deploy/replay remain pending.
+- V21 verification: Python unit tests 3/3, full suite 66/66, TypeScript/Wrangler types, deploy dry-run and diff check PASS. Production reinspection reached CADCore but failed updating the existing report artifact because `(task_id, stage_id, storage_key)` is unique; task remains FAILED with no credits charged.
+
+### V22 idempotent CAD artifact refresh — 2026-09-24
+
+- V21 production attempt confirmed legacy report regeneration uses an existing canonical CAD job, but output artifact inserts collided with the unique artifact storage-key constraint.
+- V22 upserts the existing G02 report and normalized BREP artifact rows, and permits recovery of the CAD job row only when the stored blocker is that exact artifact-key conflict. Other CAD parse blockers remain fail-closed.
+- V22 verification: focused Python parser tests 3/3; full suite 66/66; TypeScript/Wrangler types/deploy dry-run/diff check PASS. Production deploy and same-task replay pending.
 # Runtime completion update — 2026-09-18
 
 - Added production STL-to-BREP CADCore path with ASCII/Binary STL geometry facts and normalized BREP output.

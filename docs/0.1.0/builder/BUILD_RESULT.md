@@ -200,4 +200,9 @@ The Worker now builds and deploys the STL CADCore runner, safe preview routes, G
 ### V21 recovery fix — 2026-09-24
 
 - Reuse the unique `cad_jobs` row when refreshing a legacy STEP inspection; clear stale keys and mark the row running before calling CADCore. This avoids inserting a duplicate for the same task/input/kind.
-- V21 local verification: Python unit tests 3/3; full suite 66/66; TypeScript/Wrangler types/deploy dry-run/diff check PASS. Production deployment and same-task replay pending. No quality pass or ZIP is claimed.
+- V21 local verification: Python unit tests 3/3; full suite 66/66; TypeScript/Wrangler types/deploy dry-run/diff check PASS. Production deployment reached CADCore but artifact insert conflicted with the unique storage-key constraint.
+
+### V22 idempotent artifact recovery — 2026-09-24
+
+- G02 report/BREP rows now upsert on the existing `(task_id, stage_id, storage_key)` key. Only a prior BLOCKED job carrying the exact database artifact-conflict error is resumable; actual parse/geometry failures remain blocked.
+- V22 local verification: focused Python parser tests 3/3; full suite 66/66; TypeScript/Wrangler types/deploy dry-run/diff check PASS. Production deployment and same-task rework pending; no quality pass or ZIP is claimed.
